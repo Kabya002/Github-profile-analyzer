@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Profile Analyzer</title>
+    <link href="{{ url_for('static', filename='css/tailwind.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+        integrity="sha512-k6RqeWeci5ZR/Lv4MR0sA0FfDOMar2D+QdqFz/Y5r+ewW6M6Ol05Th1JQHqvN4FJzFrTDX9C+QlQyl41KdF1dA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+</head>
+
+<body class="flex flex-col min-h-screen bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100 ">
+
+    <!-- Navbar -->
+    <header id="navbar"
+        class="bg-[#0A2647] text-white shadow fixed top-0 left-0 w-full z-50 transition-transform duration-300">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold">
+                <a href="{{ url_for('home') }}" class="hover:text-blue-300 transition-colors">GitHub Profile
+                    Analyzer</a>
+            </h1>
+            <div class="space-x-4">
+                <a href="{{ url_for('home') }}" class="hover:text-blue-300 transition-colors">Home</a>
+                <a href="#" class="hover:text-blue-300 transition-colors">Login</a>
+                <a href="#" class="hover:text-blue-300 transition-colors">Register</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Page Content  and back to top button-->
+    <main class="flex-1">
+        {% block content %}{% endblock %}
+        <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Back to Top"
+            class="fixed bottom-6 right-6 z-50 bg-white text-[#0A2647] hover:text-white hover:bg-[#144272] w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl transition-colors">
+            ↑
+        </button>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 dark:bg-gray-950 text-white text-sm py-4 relative">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center">
+            <p>&copy; 2025 GitHub Profile Analyzer. Built by Kabyashree Gogoi.</p>
+
+            <div class="flex items-center space-x-4 mt-2 sm:mt-0">
+                <!-- Social icons -->
+                <a href="https://github.com/Kabya002" target="_blank" aria-label="GitHub" class="hover:text-[#144272]">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 008.11 10.96c.59.11.8-.26.8-.57v-2c-3.3.72-4-1.58-4-1.58a3.15 3.15 0 00-1.32-1.74c-1.08-.74.08-.73.08-.73a2.5 2.5 0 011.82 1.22 2.52 2.52 0 003.43 1 2.5 2.5 0 01.74-1.58C7.1 16.13 4.3 15.15 4.3 10.75a4.2 4.2 0 011.12-2.9 3.91 3.91 0 01.1-2.86s.82-.26 2.7 1.03a9.23 9.23 0 014.94 0c1.87-1.29 2.7-1.03 2.7-1.03a3.91 3.91 0 01.1 2.86 4.2 4.2 0 011.12 2.9c0 4.41-2.8 5.38-5.46 5.67a2.87 2.87 0 01.82 2.22v3.29c0 .31.21.69.81.57A11.5 11.5 0 0023.5 12C23.5 5.65 18.35.5 12 .5z" />
+                    </svg>
+                </a>
+                <!-- LinkedIn -->
+                <a href="https://www.linkedin.com/in/yourprofile" target="_blank" aria-label="LinkedIn"
+                    class="hover:text-[#144272]">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path
+                            d="M4.98 3.5C4.98 4.88 3.87 6 2.5 6S0 4.88 0 3.5 1.11 1 2.5 1 4.98 2.12 4.98 3.5zM0 8h5v16H0V8zm7.5 0h4.6v2.2h.1c.6-1.1 2.1-2.3 4.4-2.3 4.7 0 5.6 3.1 5.6 7.2V24h-5V15.3c0-2.1-.04-4.8-3-4.8-3 0-3.5 2.3-3.5 4.6V24h-5V8z" />
+                    </svg>
+                </a>
+
+                <!-- Instagram -->
+                <a href="https://www.instagram.com/yourprofile" target="_blank" aria-label="Instagram"
+                    class="hover:text-[#144272]">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path
+                            d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.8.3 2.2.5.5.2.9.5 1.3.9.4.4.7.8.9 1.3.2.4.4 1 .5 2.2.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.8-.5 2.2-.2.5-.5.9-.9 1.3-.4.4-.8.7-1.3.9-.4.2-1 .4-2.2.5-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.8-.3-2.2-.5-.5-.2-.9-.5-1.3-.9-.4-.4-.7-.8-.9-1.3-.2-.4-.4-1-.5-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.3-1.8.5-2.2.2-.5.5-.9.9-1.3.4-.4.8-.7 1.3-.9.4-.2 1-.4 2.2-.5C8.4 2.2 8.8 2.2 12 2.2M12 0C8.7 0 8.3 0 7 0 5.6 0 4.4.3 3.6.7c-.9.4-1.7 1-2.4 1.7C.3 3.6 0 4.8 0 6.2 0 7.5 0 7.9 0 11.1c0 3.3 0 3.7.1 5 .1 1.4.3 2.6.7 3.4.4.9 1 1.7 1.7 2.4.7.7 1.5 1.2 2.4 1.7.8.4 2 0 3.4.1 1.3.1 1.7.1 5 .1s3.7 0 5-.1c1.4-.1 2.6-.3 3.4-.7.9-.4 1.7-1 2.4-1.7.7-.7 1.2-1.5 1.7-2.4.4-.8.6-2 .7-3.4.1-1.3.1-1.7.1-5s0-3.7-.1-5c-.1-1.4-.3-2.6-.7-3.4-.4-.9-1-1.7-1.7-2.4C20.4.3 19.2 0 17.8 0 16.5 0 16.1 0 12.9 0 12.5 0 12 0 12 0z" />
+                        <circle cx="12" cy="12" r="3.2" />
+                    </svg>
+                </a>
+                <!-- Dark mode toggle -->
+                <button onclick="toggleDarkMode()" class="hover:text-[#144272] focus:outline-none"
+                    aria-label="Toggle Dark Mode">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                            d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm0 14a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm8-6a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM4 10a1 1 0 01-1 1H2a1 1 0 110-2h1a1 1 0 011 1zm11.07-6.93a1 1 0 010 1.41l-.7.7a1 1 0 01-1.41-1.41l.7-.7a1 1 0 011.41 0zM6.34 15.66a1 1 0 010 1.41l-.7.7a1 1 0 01-1.41-1.41l.7-.7a1 1 0 011.41 0zm9.32 1.41a1 1 0 01-1.41 0l-.7-.7a1 1 0 011.41-1.41l.7.7a1 1 0 010 1.41zM6.34 4.34a1 1 0 01-1.41 0l-.7-.7A1 1 0 016.34 2.2l.7.7a1 1 0 010 1.44z" />
+                    </svg>
+                </button>
+                <!-- Back to Top -->
+            </div>
+        </div>
+    </footer>
+    {% block scripts %}
+    {% endblock %}
+    <!-- Swiper JS -->
+    <script>
+        // Back to top
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        // Dark mode toggle
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+        }
+        let lastScrollTop = 0;
+        const navbar = document.getElementById("navbar");
+
+        window.addEventListener("scroll", function () {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            if (scrollTop > lastScrollTop) {
+                navbar.classList.add("-translate-y-full"); // hide on scroll down
+            } else {
+                navbar.classList.remove("-translate-y-full"); // show on scroll up
+            }
+            lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+        });
+    </script>
+</body>
+
+</html>
