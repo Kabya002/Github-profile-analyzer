@@ -9,19 +9,22 @@
   <div class="bg-black bg-opacity-60 p-8 rounded-lg">
     <h1 class="text-5xl md:text-6xl font-bold text-white">Your customers will love you<br /> one minute from now.</h1>
     <p class="mt-6 text-lg text-white">See how your users experience your website in realtime.</p>
-    <form action="/search" method="get" class="mt-6 flex justify-center">
-      <input type="text" name="username" placeholder="Search GitHub user" class="rounded-l px-4 py-2 w-64">
+    <form action="/search" method="get" class="mt-6 flex justify-center gap-2">
+      <input type="text" name="username" placeholder="Search GitHub user"
+        class="px-3 py-1 text-sm border border-white rounded hover:bg-white hover:text-black transition" />
       <button type="submit"
-        class="bg-white text-dark px-4 py-2 rounded-r hover:text-white hover:bg-[#144272]">Search</button>
+        class="px-3 py-1 text-sm border border-white rounded hover:bg-white hover:text-black transition">
+        Search
+      </button>
     </form>
   </div>
 </section>
 
 <!-- Swiper Carousel Section with background image -->
-<section class="h-screen w-full bg-cover bg-center relative"
-  style="background-image: url('/static/images/features-bg.jpeg');">
-  <div class="bg-black bg-opacity-60 w-full h-full flex items-center justify-center">
-    <div class="swiper mySwiper w-10/12 h-[70%] bg-white/10 backdrop-blur-sm rounded-xl overflow-hidden">
+<section class="min-h-[120vh] w-full bg-cover bg-center flex items-center justify-center relative"
+  style="background-image: url('/static/images/hero-bg.jpeg');">
+  <div class="bg-black bg-opacity-60 w-10/12 h-[550px] flex items-center justify-center">
+    <div class="swiper mySwiper w-10/12 h-[550px] bg-white/10 backdrop-blur-sm rounded-xl overflow-hidden">
       <div class="swiper-wrapper">
         {% for i in range(1, 6) %}
         <div class="swiper-slide relative bg-cover bg-center h-full flex flex-col justify-end"
@@ -43,31 +46,71 @@
   </div>
 </section>
 
-<!-- Meet the Creator Section -->
-<section class="h-screen w-full bg-cover bg-center flex items-center justify-center text-center px-4 animate-fadeInUp"
-  style="background-image: url('/static/images/creator-bg.jpeg');">
-  <div class="bg-black bg-opacity-60 p-8 rounded-lg transform transition-transform duration-500 hover:scale-105">
-    <img src="/static/images/creator.jpg" alt="Creator"
-      class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-white">
-    <h3 class="text-2xl font-bold text-white">Kabyashree Gogoi</h3>
-    <p class="text-white mt-2">Passionate Web Developer & Creator of GitHub Profile Analyzer</p>
+<!-- Meet the Creator + Projects Section -->
+<section class="min-h-screen w-full bg-cover bg-center flex items-center justify-center px-4 relative"
+  style="background-image: url('/static/images/hero-bg.jpeg');">
+  <div class="bg-black bg-opacity-60 p-8 rounded-lg shadow-lg max-w-5xl w-full flex flex-col items-center">
+    <!-- Creator Info -->
+    <div class="mb-10">
+      <img src="/static/images/creator.jpg" alt="Creator"
+        class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-white">
+      <h3 class="text-2xl font-bold text-white text-center">Kabyashree Gogoi</h3>
+      <p class="text-white mt-2 text-center">Passionate Web Developer & Creator of GitHub Profile Analyzer</p>
+
+    </div>
+
+    <!-- Project Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {% for project in [
+      {'title': 'Portfolio Website', 'desc': 'A modern developer portfolio with animations.', 'time': '2 days ago'},
+      {'title': 'Task Manager', 'desc': 'A simple task management app with deadlines.', 'time': '1 week ago'},
+      {'title': 'Blog Platform', 'desc': 'Minimal blog CMS built with Flask & MongoDB.', 'time': '1 month ago'}
+      ] %}
+      <div
+        class="bg-white/10 backdrop-blur p-4 rounded-lg shadow-lg text-left text-white flex flex-col justify-between">
+        <div class="mb-4">
+          <div class="h-40 w-full bg-gray-600 rounded mb-4 flex items-center justify-center">
+            <span class="text-white font-bold">Thumbnail</span>
+          </div>
+          <h4 class="text-lg font-semibold">{{ project.title }}</h4>
+          <p class="text-sm mt-2">{{ project.desc }}</p>
+        </div>
+        <div class="flex justify-between items-center mt-auto">
+          <div class="space-x-2">
+            <button
+              class="px-3 py-1 text-sm border border-white rounded hover:bg-white hover:text-black transition">View</button>
+            <button
+              class="px-3 py-1 text-sm border border-white rounded hover:bg-white hover:text-black transition">Edit</button>
+          </div>
+          <small class="text-xs opacity-70">{{ project.time }}</small>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 </section>
 
+
 <!-- Contact Section -->
 <section class="h-screen w-full bg-cover bg-center flex items-center justify-center px-4 animate-fadeInUp delay-200"
-  style="background-image: url('/static/images/contact-bg.jpeg');">
+  style="background-image: url('/static/images/hero-bg.jpeg');">
   <div class="max-w-xl mx-auto bg-black bg-opacity-60 p-8 rounded shadow-lg">
     <h2 class="text-2xl font-bold mb-6 text-white text-center">Get in Touch</h2>
     <form>
-      <input type="text" placeholder="Your Name" class="w-full border rounded px-4 py-2 mb-4">
-      <input type="email" placeholder="Email" class="w-full border rounded px-4 py-2 mb-4">
-      <textarea placeholder="Message" rows="4" class="w-full border rounded px-4 py-2 mb-4"></textarea>
+      <input type="text" placeholder="Your Name"
+        class="w-full px-3 py-1 text-sm border border-white rounded hover:bg-white hover:text-black transition mb-4">
+      <input type="email" placeholder="Email"
+        class="w-full px-3 py-1 text-sm border border-white rounded hover:bg-white hover:text-black transition mb-4">
+      <textarea placeholder="Message" rows="4"
+        class="w-full px-3 py-1 text-sm border border-white rounded hover:bg-white hover:text-black transition mb-4"></textarea>
+
       <div class="flex justify-center mt-4">
         <button type="submit"
-          class="bg-white text-dark px-6 py-2 rounded hover:text-white hover:bg-[#144272]bg-white text-dark px-4 py-2 rounded-r hover:text-white hover:bg-[#144272]">
-          Send </button>
+          class="px-3 py-1 text-sm border border-white rounded hover:bg-white hover:text-black transition">
+          Send
+        </button>
       </div>
+
 
     </form>
   </div>
@@ -77,13 +120,12 @@
 
 {% block scripts %}
 {{ super() }}
-<!-- Swiper JS --> 
-<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+<!-- Swiper JS -->
 <script>
-  swiper = new Swiper(".mySwiper", {
+  const swiper = new Swiper(".mySwiper", {
     loop: true,
     autoplay: {
-      delay: 2000,
+      delay: 1500,
       disableOnInteraction: false,
       pauseOnMouseEnter: true
     },
@@ -91,10 +133,10 @@
       el: ".swiper-pagination",
       clickable: true,
     },
-  navigation: {
-    nextEl: ".swiper-button-next",
-    prevEl: ".swiper-button-prev",
-  },
-});
+    navigation: {
+      nextEl: ".swiper-button-next",
+      prevEl: ".swiper-button-prev",
+    },
+  });
 </script>
 {% endblock %}
