@@ -3,22 +3,84 @@
 {% block title %}Summary - GitHub User{% endblock %}
 
 {% block content %}
-<section class="max-w-4xl mx-auto p-6">
-  <div class="flex items-center space-x-6">
-    <img src="{{ user.avatar_url }}" alt="Avatar" class="w-24 h-24 rounded-full">
-    <div>
-      <h2 class="text-2xl font-bold">{{ user.name or user.login }}</h2>
-      <p class="text-sm">Followers: {{ user.followers }} | Repos: {{ user.public_repos }}</p>
+<section class="min-h-screen bg-cover bg-center py-16 px-6 text-white"
+  style="background-image: url('/static/images/hero-bg.jpeg');">
+  <div class="bg-black bg-opacity-70 w-full h-full absolute inset-0 -z-10"></div>
+
+  <div class="max-w-7xl mx-auto space-y-16">
+
+    <!-- Profile Card -->
+    <div class="relative rounded-lg overflow-hidden space-y-5 shadow-lg animate-fadeInUp">
+      <div class="absolute inset-0 bg-cover bg-center opacity-20"
+        style="background-image: url('/static/images/creator-bg.jpeg');"></div>
+      <div class="relative bg-black bg-opacity-60 p-8 rounded-lg flex flex-col md:flex-row items-center gap-6">
+        <img src="{{ user.avatar_url }}" alt="Avatar" class="w-28 h-28 rounded-full border-4 border-white">
+        <div class="text-center md:text-left">
+          <h2 class="text-3xl font-bold">{{ user.name or user.login }}</h2>
+          <p class="mt-1 text-sm">Followers: {{ user.followers }} | Repos: {{ user.public_repos }}</p>
+          <p class="mt-2 text-sm italic">{{ user.bio or 'No bio provided.' }}</p>
+          <a href="{{ user.html_url }}" target="_blank"
+            class="inline-block mt-4 px-4 py-2 text-sm border border-white rounded hover:bg-white hover:text-black transition">View
+            GitHub Profile</a>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div class="mt-6">
-    <h3 class="text-xl font-bold">Bio</h3>
-    <p>{{ user.bio or 'No bio provided.' }}</p>
-  </div>
+    <!-- Repositories Section -->
+    {% if repos %}
+    <div class="space-y-10 animate-fadeInUp">
+      <h2 class="text-2xl font-bold border-b pb-2">Repositories Overview</h2>
 
-  <div class="mt-6">
-    <a href="{{ user.html_url }}" target="_blank" class="text-blue-600 underline">View GitHub Profile</a>
+      <!-- Highlight Repo -->
+      <!-- Highlight repo -->
+      <div class="relative rounded-lg overflow-hidden shadow-lg bg-black bg-opacity-60 p-6">
+        <div class="absolute inset-0 bg-cover bg-center opacity-10"
+          style="background-image: url('/static/images/hero-bg.jpg');"></div>
+        <div class="relative z-10">
+
+          <h3 class="text-xl font-bold mb-2">Latest Repository Highlight</h3>
+          <div class="flex items-center gap-4">
+            <div>
+              <h4 class="text-lg font-semibold">{{ repos[0].name }}</h4>
+              <p class="text-sm text-gray-300">{{ repos[0].language or 'Language Unknown' }}</p>
+              <p class="text-sm mt-2">{{ repos[0].description or 'No description available.' }}</p>
+              <p class="text-sm mt-2">⭐ {{ repos[0].stargazers_count }} | 🍴 {{ repos[0].forks_count }}</p>
+              <a href="{{ repos[0].html_url }}" target="_blank"
+                class="inline-block mt-4 px-4 py-2 text-sm border border-white rounded hover:bg-white hover:text-black transition">View</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Other Repos -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        {% for repo in repos[1:7] %}
+        <div
+          class="relative rounded-lg overflow-hidden shadow-lg bg-black bg-opacity-60 p-6 hover:scale-[1.02] transition">
+          <div class="absolute inset-0 bg-cover bg-center opacity-10"
+            style="background-image: url('/static/images/hero-bg.jpg');"></div>
+          <div class="relative z-10">
+            <h4 class="font-semibold">{{ repo.name }}</h4>
+            <p class="text-sm text-gray-300">{{ repo.language or 'Unknown Language' }}</p>
+            <p class="text-sm mt-2">{{ repo.description or 'No description available.' }}</p>
+            <p class="text-sm mt-2">⭐ {{ repo.stargazers_count }} | 🍴 {{ repo.forks_count }}</p>
+            <a href="{{ repo.html_url }}" target="_blank"
+              class="inline-block mt-4 px-3 py-1 text-sm border border-white rounded hover:bg-white hover:text-black transition">View</a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% if repos|length > 7 %}
+      <div class="text-center pt-4">
+        <button class="px-4 py-2 border border-white rounded hover:bg-white hover:text-black transition">Load More
+          Repositories</button>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="text-center text-gray-300 mt-6">No repositories available for this user.</p>
+    {% endif %}
   </div>
 </section>
 {% endblock %}

@@ -39,13 +39,20 @@ def search_user():
 
 @app.route("/summary/<username>")
 def summary(username):
-    url = f"https://api.github.com/users/{username}"
-    response = requests.get(url, headers=HEADERS)
-    if response.status_code != 200:
-        return render_template("summary.html", user={})
+    user_url = f"https://api.github.com/users/{username}"
+    repos_url = f"https://api.github.com/users/{username}/repos?sort=updated"
 
-    data = response.json()
-    return render_template("summary.html", user=data)
+    user_response = requests.get(user_url, headers=HEADERS)
+    repos_response = requests.get(repos_url, headers=HEADERS)
+
+    if user_response.status_code != 200:
+        return render_template("summary.html", user={}, repos=[])
+
+    user_data = user_response.json()
+    repos_data = repos_response.json() if repos_response.status_code == 200 else []
+
+    return render_template("summary.html", user=user_data, repos=repos_data)
+
 
 @app.route("/api/user/<username>")
 def api_user_summary(username):
