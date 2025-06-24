@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<section class="min-h-screen bg-cover bg-center flex items-center justify-center px-4"
+  style="background-image: url('/static/images/hero-bg.jpeg');">
+  <div class="bg-black bg-opacity-60 p-8 rounded-lg shadow-lg w-full max-w-md animate-fadeInUp">
+    <h2 class="text-2xl font-bold text-white text-center mb-6">Login</h2>
+    <form method="POST" action="/login" class="space-y-4">
+      <input type="email" name="email" placeholder="Email"
+        class="w-full px-4 py-2 text-sm border border-white rounded bg-transparent text-white placeholder-white focus:outline-none focus:bg-white focus:text-black mb-4 transition"/>
+      <input type="password" name="password" placeholder="Password"
+        class="w-full px-4 py-2 text-sm border border-white rounded bg-transparent text-white placeholder-white focus:outline-none focus:bg-white focus:text-black mb-4 transition" />
+
+      <div class="text-center">
+        <button type="submit"
+          class="px-4 py-2 border border-white rounded hover:bg-white hover:text-black transition">Login</button>
+      </div>
+    </form>
+
+    <div class="text-center mt-4">
+      <form action="{{ url_for('github_login') }}" method="GET">
+        <button type="submit"
+          class="flex items-center gap-2 justify-center w-full px-4 py-2 border border-white rounded hover:bg-white hover:text-black transition">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 008.11 10.96c.59.11.8-.26.8-.57v-2c-3.3.72-4-1.58-4-1.58a3.15 3.15 0 00-1.32-1.74c-1.08-.74.08-.73.08-.73a2.5 2.5 0 011.82 1.22 2.52 2.52 0 003.43 1 2.5 2.5 0 01.74-1.58C7.1 16.13 4.3 15.15 4.3 10.75a4.2 4.2 0 011.12-2.9 3.91 3.91 0 01.1-2.86s.82-.26 2.7 1.03a9.23 9.23 0 014.94 0c1.87-1.29 2.7-1.03 2.7-1.03a3.91 3.91 0 01.1 2.86 4.2 4.2 0 011.12 2.9c0 4.41-2.8 5.38-5.46 5.67a2.87 2.87 0 01.82 2.22v3.29c0 .31.21.69.81.57A11.5 11.5 0 0023.5 12C23.5 5.65 18.35.5 12 .5z" />
+          </svg>
+          Login with GitHub
+        </button>
+      </form>
+    </div>
+
+    <p class="text-sm text-center mt-6 text-white">Don't have an account?
+      <a href="/register" class="underline hover:text-gray-300">Register</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

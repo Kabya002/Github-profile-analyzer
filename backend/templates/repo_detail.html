@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}Repository Detail{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="pt-24 min-h-screen bg-cover bg-center text-white px-4 relative"
+  style="background-image: url('/static/images/hero-bg.jpeg');">
+  <div class="absolute inset-0 bg-black bg-opacity-70 -z-10"></div>
+  <div class="max-w-6xl mx-auto space-y-10">
+
+    <!-- Repo Title Card -->
+    <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow-lg animate-fadeInUp">
+      <h2 class="text-3xl font-bold mb-2">{{ repo.name }}</h2>
+      <p class="text-sm text-gray-300 italic">{{ repo.description or 'No description provided.' }}</p>
+      <p class="mt-2 text-sm">⭐ {{ repo.stargazers_count }} | 🍴 {{ repo.forks_count }}</p>
+      <a href="{{ repo.html_url }}" target="_blank"
+        class="mt-4 inline-block px-4 py-2 text-sm border border-white rounded hover:bg-white hover:text-black transition">View
+        on GitHub</a>
+    </div>
+
+    <!-- Language Pie Chart Card -->
+    {% if languages %}
+    <div
+      class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow-lg animate-fadeInUp grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+      <div class="space-y-2">
+        <h3 class="text-xl font-semibold">Languages Used</h3>
+        <ul class="text-sm space-y-1">
+          {% for lang, count in languages.items() %}
+          <li class="flex items-center gap-2">
+            <span class="inline-block w-3 h-3 rounded-full"
+              style="background-color: {{ color_palette[loop.index0 % color_palette|length] }}"></span>
+
+            <span class="text-gray-300">{{ lang }}: {{ count }} bytes</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="w-72 h-72 mx-auto">
+        <canvas id="languagePieChart" width="250" height="250"></canvas>
+      </div>
+
+    </div>
+    {% endif %}
+
+    <!-- File Structure Card -->
+    <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow-lg animate-fadeInUp">
+      <div class="cursor-pointer flex justify-between items-center" onclick="toggleFolderTree()">
+        <h3 class="text-xl font-semibold mb-2">📁 Folder Structure</h3>
+        <span class="text-sm text-gray-300">Click to expand</span>
+      </div>
+
+      <div id="folderTreeContent" class="text-sm text-gray-300 mt-4 hidden">
+        {% macro render_tree(tree) %}
+        <ul class="ml-4 space-y-1">
+          {% for node in tree %}
+          {% if node.type == 'file' %}
+          <li>📄 {{ node.name }}</li>
+          {% elif node.type == 'dir' %}
+          <li>📁 {{ node.name }}
+            {{ render_tree(node.children) }}
+          </li>
+          {% endif %}
+          {% endfor %}
+        </ul>
+        {% endmacro %}
+        {{ render_tree(file_tree) }}
+      </div>
+    </div>
+
+
+    <!-- README Card -->
+    <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow-lg animate-fadeInUp">
+      <div class="flex justify-between items-center cursor-pointer" onclick="toggleReadme()">
+        <h3 class="text-xl font-semibold">📄 README</h3>
+        <span class="text-sm text-gray-300">Click to expand</span>
+      </div>
+
+      <!-- Preview text -->
+      <div id="readmePreview" class="text-sm text-gray-300 mt-2">
+        A README file is available. Click to view.
+      </div>
+
+      <!-- Full content -->
+      <div id="readmeContent" class="hidden mt-4 prose prose-invert max-w-none">
+        {{ readme_html | safe }}
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  {% if languages %}
+  const languageCtx = document.getElementById('languagePieChart').getContext('2d');
+  const languageData = {
+    labels: {{ languages.keys() | list | tojson }},
+  datasets: [{
+    label: 'Languages',
+    data: {{ languages.values() | list | tojson }},
+    backgroundColor: ['#60a5fa', '#f472b6', '#34d399', '#fbbf24', '#a78bfa', '#fb7185', '#facc15', '#fdba74', '#4ade80']
+    }]
+  };
+  new Chart(languageCtx, {
+    type: 'pie',
+    data: languageData,
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: 'white', // ← make legend text white
+            font: {
+              size: 14
+            }
+          }
+        }
+      }
+    }
+  });
+  {% endif %}
+</script>
+{% endblock %}

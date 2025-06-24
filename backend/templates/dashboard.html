@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Hero Section with Search -->
+<section class="pt-24 min-h-[60vh] bg-cover bg-center flex items-center justify-center px-4 text-white relative"
+  style="background-image: url('/static/images/hero-bg.jpeg');">
+  <div class="absolute inset-0 bg-black bg-opacity-70 -z-10"></div>
+  <div class="text-center space-y-6">
+    <h1 class="text-4xl font-bold">Search GitHub Users</h1>
+    <form action="{{ url_for('dashboard', username=logged_in_username) }}" method="GET"
+      class="flex justify-center gap-2">
+      <input type="text" name="username" id="usernameInput" value="{{ request.args.get('username', '') }}"
+        class="px-4 py-2 w-64 sm:w-80 text-base text-black border border-white rounded focus:outline-none focus:ring-2 focus:ring-white"
+        placeholder="Enter GitHub username" />
+
+      <button type="submit"
+        class="px-4 py-2 text-base border border-white rounded hover:bg-white hover:text-black transition">
+        Search
+      </button>
+    </form>
+  </div>
+</section>
+
+{% if not github_connected and not user %}
+<!-- Email-only dashboard -->
+<section class="py-24 text-center text-white">
+  <h2 class="text-2xl font-bold">You have not connected your GitHub account</h2>
+  <a href="{{ url_for('github_login') }}"
+    class="mt-4 inline-block px-6 py-3 bg-white text-black font-semibold rounded hover:bg-gray-200 transition">
+    Connect GitHub Account
+  </a>
+</section>
+{% elif user %}
+<!-- Profile & Repo Section -->
+<section class="min-h-screen bg-cover bg-center py-16 px-6 text-white relative"
+  style="background-image: url('/static/images/hero-bg.jpeg');">
+  <div class="absolute inset-0 bg-black bg-opacity-70 -z-10"></div>
+  <div class="max-w-7xl mx-auto space-y-16">
+
+    <!-- Profile Card -->
+    <div class="relative rounded-lg overflow-hidden shadow-lg animate-fadeInUp">
+      <div class="absolute inset-0 bg-cover bg-center opacity-20"
+        style="background-image: url('/static/images/creator-bg.jpeg');"></div>
+      <div class="relative bg-black bg-opacity-60 p-8 rounded-lg flex flex-col md:flex-row items-center gap-6">
+        <img src="{{ user.avatar_url }}" alt="Avatar" class="w-28 h-28 rounded-full border-4 border-white shadow-lg">
+        <div class="text-center md:text-left">
+          <h2 class="text-3xl font-bold">{{ user.name or user.login }}</h2>
+          <p class="mt-1 text-sm">Followers: {{ user.followers }} | Repos: {{ user.public_repos }}</p>
+          <p class="mt-2 text-sm italic">{{ user.bio or 'No bio provided.' }}</p>
+          <a href="{{ user.html_url }}" target="_blank"
+            class="inline-block mt-4 px-4 py-2 text-sm border border-white rounded hover:bg-white hover:text-black transition">View
+            GitHub Profile</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fadeInUp">
+      <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow text-white">
+        <h3 class="text-lg font-bold mb-4">Language Usage</h3>
+        <canvas id="languageChart" class="w-full max-w-3xl mx-auto mt-12"></canvas>
+      </div>
+      <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow text-white">
+        <h3 class="text-lg font-bold mb-4">Contribution Graph</h3>
+        <img src="https://ghchart.rshah.org/{{ user.login }}" alt="GitHub Contributions" class="w-full">
+      </div>
+    </div>
+
+    {% if repos %}
+    <!-- Repo Cards -->
+    <div class="space-y-10 animate-fadeInUp">
+      <h2 class="text-2xl font-bold border-b pb-2">Repositories</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        {% for repo in repos[:6] %}
+        <div class="bg-white/10 backdrop-blur-md p-4 rounded-lg shadow hover:scale-[1.02] transition cursor-pointer"
+          onclick="location.href='{{ url_for('repo_detail', username=user.login, repo_name=repo.name) }}'">
+          <h4 class="font-semibold">{{ repo.name }}</h4>
+          <p class="text-sm text-gray-300">{{ repo.language or 'Unknown Language' }}</p>
+          <p class="text-sm mt-2">{{ repo.description or 'No description available.' }}</p>
+          <p class="text-sm mt-2">⭐ {{ repo.stargazers_count }} | 🍴 {{ repo.forks_count }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const usernameInput = document.getElementById("usernameInput");
+  const baseUrl = "{{ url_for('dashboard', username=logged_in_username) }}";
+
+  usernameInput.addEventListener("input", function () {
+    const username = this.value.trim();
+
+    if (username.length > 0) {
+      // Navigate to searched profile
+      window.location.href = `${baseUrl}?username=${encodeURIComponent(username)}`;
+    } else {
+      // If GitHub connected, redirect to self profile
+      {% if github_connected %}
+      window.location.href = baseUrl;
+      {% endif %}
+    }
+  });
+</script>
+
+<script>
+  const input = document.getElementById("usernameInput");
+  input.addEventListener("input", () => {
+    const username = input.value.trim();
+    if (!username) {
+      // Redirect to logged-in user's profile only if GitHub ID exists
+      const hasGithub = "{{ 'github_id' in session }}";
+      const githubUsername = "{{ session.get('github_id', '') }}";
+      if (hasGithub && githubUsername) {
+        window.location.href = `/dashboard/${githubUsername}`;
+      }
+    }
+  });
+</script>
+
+{% if language_data %}
+<script>
+  const ctx = document.getElementById('languageChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ language_data["labels"] | tojson }},
+    datasets: [{
+      label: 'Language Usage (%)',
+      data: {{ language_data["values"] | tojson }},
+    backgroundColor: [
+      '#60a5fa', '#f472b6', '#34d399', '#fbbf24',
+      '#a78bfa', '#fb7185', '#facc15'
+    ],
+    borderRadius: 6,
+    borderSkipped: false
+      }]
+    },
+    options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: function (context) {
+            return `${context.label}: ${context.parsed.y}%`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: 'white', font: { weight: 'bold' } },
+        grid: { color: 'rgba(255,255,255,0.1)' }
+      },
+      y: {
+        ticks: {
+          color: 'white',
+          callback: val => `${val}%`
+        },
+        grid: { color: 'rgba(255,255,255,0.1)' },
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: 'Percentage',
+          color: 'white'
+        }
+      }
+    }
+  }
+  });
+</script>
+{% endif %}
+
+{% endblock %}
