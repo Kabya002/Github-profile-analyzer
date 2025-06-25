@@ -16,8 +16,18 @@ module.exports = {
       animation: {
         fadeInUp: "fadeInUp 0.8s ease-out",
         gradientMove: "gradientMove linear ease infinite",
+        slideDown: "slideDown 0.4s ease-out",
+        slideUp: "slideUp 0.4s ease-in",
       },
       keyframes: {
+        slideDown: {
+          "0%": { opacity: 0, transform: "translateY(-20px)" },
+          "100%": { opacity: 1, transform: "translateY(0)" },
+        },
+        slideUp: {
+          "0%": { opacity: 1, transform: "translateY(0)" },
+          "100%": { opacity: 0, transform: "translateY(-20px)" },
+        },
         fadeInUp: {
           "0%": { opacity: "0", transform: "translateY(20px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
@@ -40,4 +50,5 @@ module.exports = {
     },
   },
   plugins: [require("@tailwindcss/typography")],
+  safelist: ['-translate-y-full', 'transform', 'transition-transform']
 };

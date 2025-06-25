@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_cors import CORS
 from pymongo import MongoClient
+from collections import Counter
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_dance.contrib.github import make_github_blueprint, github
 from flask_dance.consumer import oauth_authorized
@@ -8,6 +10,7 @@ import requests, os
 from functools import wraps
 import markdown
 import base64
+import re
 
 app = Flask(__name__)
 app.config["SESSION_PERMANENT"] = True
@@ -24,8 +27,7 @@ users = db["users"]
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 HEADERS = {
     "Authorization": f"token {GITHUB_TOKEN}" if GITHUB_TOKEN else None,
-    "User-Agent": "GitHub-Profile-Analyzer"
-}
+    "User-Agent": "GitHub-Profile-Analyzer"}
 # Clean up None values
 HEADERS = {k: v for k, v in HEADERS.items() if v is not None}
 
@@ -36,7 +38,33 @@ app.register_blueprint(github_bp, url_prefix="/github_login")
 
 @app.route("/")
 def home():
-    return render_template("home.html")
+    
+    projects = [
+    {
+        'title': 'Financia:',
+        'desc': 'A personal finance tracker to help you stay on top of your expenses and income.',
+        'image': '/static/images/financia-logo.png',
+        'link': 'https://github.com/Kabya002/Financia'
+    },
+    {
+        'title': 'Blog:',
+        'desc': 'A clean, minimalist space where anyone can share their thoughts and stories—like a cozy corner of the internet.',
+        'image': '/static/images/blog-logo.png',
+        'link': 'https://blog-c0p3.onrender.com/'
+    },
+    {
+        'title': 'Portfolio Website',
+        'desc': 'A beautifully crafted personal website to showcase projects, skills, and a journey in tech.',
+        'image': '/static/images/portfolio-logo.png',
+        'link': 'https://github.com/Kabya002/Portfolio'
+    }
+]
+
+    if "github_id" in session:
+        return redirect(url_for("dashboard", username=session["github_id"]))
+    elif "user" in session:
+        return redirect(url_for("dashboard", username=session["user"]))
+    return render_template("home.html", projects=projects)
 
 @app.route("/search")
 def search_user():
@@ -77,57 +105,76 @@ def summary(username):
 
 @app.route("/dashboard/<username>")
 def dashboard(username):
-    # Determine user session state
+    # Determine session state
     logged_in_email = session.get("user")
     github_id = session.get("github_id")
+
     is_email_only = logged_in_email and not github_id
     is_github_connected = github_id == username
+    logged_in_username = github_id or logged_in_email
 
-    # Determine target user to fetch (searched user or self)
+    # Determine who to display: searched user or self
     target_username = request.args.get("username") or (github_id if github_id else None)
 
+    # If email-only user without a GitHub search
     if is_email_only and not target_username:
-        # Email-only user with no GitHub search
-        return render_template("dashboard.html",
-                               user=None,
-                               repos=[],
-                               github_connected=False,
-                               logged_in_username=username)
+        return render_template(
+            "dashboard.html",
+            user=None,
+            repos=[],
+            language_data=None,
+            github_connected=False,
+            logged_in_username=logged_in_username
+        )
 
+    # No GitHub to show
     if not target_username:
         flash("GitHub account not connected.", "warning")
-        return redirect(url_for("dashboard", username=username))
+        return redirect(url_for("dashboard", username=logged_in_username))
 
     # Fetch GitHub user & repos
     user_url = f"https://api.github.com/users/{target_username}"
     repos_url = f"https://api.github.com/users/{target_username}/repos?sort=updated"
 
     try:
-        user_response = requests.get(user_url, headers=HEADERS)
-        repos_response = requests.get(repos_url, headers=HEADERS)
+        user_resp = requests.get(user_url, headers=HEADERS)
+        repos_resp = requests.get(repos_url, headers=HEADERS)
     except Exception as e:
         print("GitHub API error:", e)
         flash("Failed to fetch GitHub data.", "error")
-        return redirect(url_for("dashboard", username=username))
+        return redirect(url_for("dashboard", username=logged_in_username))
 
-    if user_response.status_code != 200:
+    if user_resp.status_code != 200:
         flash(f"GitHub user '{target_username}' not found.", "error")
-        return redirect(url_for("dashboard", username=username))
+        return redirect(url_for("dashboard", username=logged_in_username))
 
-    user_data = user_response.json()
-    repos_data = repos_response.json() if repos_response.status_code == 200 else []
+    user_data = user_resp.json()
+    repos_data = repos_resp.json() if repos_resp.status_code == 200 else []
+    # Tag extraction for Tech Stack filtering
+    for repo in repos_data:
+        repo["tags"] = extract_tags(repo)
 
-    # Optional: compute language chart data
+    # Collect all unique stack tags
+    all_tags = sorted({tag for repo in repos_data for tag in repo["tags"]})
+
+
+    # Optional: compute language usage chart
     language_totals = {}
     total_bytes = 0
+
     for repo in repos_data:
         lang_url = repo.get("languages_url")
-        if not lang_url: continue
-        lang_resp = requests.get(lang_url, headers=HEADERS)
-        if lang_resp.ok:
-            for lang, bytes in lang_resp.json().items():
-                language_totals[lang] = language_totals.get(lang, 0) + bytes
-                total_bytes += bytes
+        if not lang_url:
+            continue
+        try:
+            lang_resp = requests.get(lang_url, headers=HEADERS)
+            if lang_resp.ok:
+                langs = lang_resp.json()
+                for lang, bytes_count in langs.items():
+                    language_totals[lang] = language_totals.get(lang, 0) + bytes_count
+                    total_bytes += bytes_count
+        except:
+            continue
 
     language_data = None
     if total_bytes > 0:
@@ -135,13 +182,17 @@ def dashboard(username):
             "labels": list(language_totals.keys()),
             "values": [round((v / total_bytes) * 100, 2) for v in language_totals.values()]
         }
-
-    return render_template("dashboard.html",
-                           user=user_data,
-                           repos=repos_data,
-                           language_data=language_data,
-                           github_connected=is_github_connected,
-                           logged_in_username=username)
+    insights = compute_insights(repos_data)
+    return render_template(
+        "dashboard.html",
+        user=user_data,
+        repos=repos_data,
+        insights=insights,
+        language_data=language_data,
+        github_connected=is_github_connected,
+        stack_tags=all_tags,
+        logged_in_username=logged_in_username
+    )
 
 @app.route("/dashboard")
 def dashboard_redirect():
@@ -152,8 +203,7 @@ def dashboard_redirect():
         if user and "github_id" in user:
             return redirect(url_for("dashboard", username=user["github_id"]))
         else:
-            # Email-only user, no GitHub linked
-            return redirect(url_for("dashboard", username=""))
+            return redirect(url_for("dashboard", username=session["user"]))  # email-only view
     flash("Login required.", "danger")
     return redirect(url_for("login"))
 
@@ -240,6 +290,13 @@ def get_more_repos(username):
         print("Repo fetch failed:", e)
         return jsonify([]), 500
 
+@app.route("/settings")
+def settings():
+    if "user" not in session and "github_id" not in session:
+        flash("Please log in to view your settings.", "warning")
+        return redirect(url_for("login"))
+    return render_template("settings.html")
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -249,13 +306,16 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+@app.context_processor
+def inject_globals():
+    return dict(users=users)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         submitted = True  # Track form submission
         name = request.form.get('name')
-        email = request.form.get('email')
+        email = request.form.get('email').lower()
         password = request.form.get('password')
 
         # Basic validations
@@ -265,14 +325,19 @@ def register():
             flash("Invalid email format", "danger")
         elif users.find_one({"email": email}):
             flash("Email already registered", "danger")
+            return redirect(url_for("login"))
         else:
             users.insert_one({
                 "name": name,
                 "email": email,
                 "password": generate_password_hash(password)
             })
-            flash("Registered successfully. Please log in.", "success")
-            return redirect(url_for("login"))
+            session["user"] = email  # Set session
+            flash("Registered successfully", "success")
+            return redirect(url_for("dashboard_redirect"))
+
+    return render_template("register.html")
+
 
     return render_template("register.html")
 
@@ -289,10 +354,9 @@ def login():
 
         session["user"] = user["email"]
         flash("Logged in successfully!", "success")
-        return redirect(url_for("home"))  # adjust to your landing route
+        return redirect(url_for("dashboard_redirect"))
 
     return render_template("login.html")
-
 
 @app.route("/login/github")
 def github_login():
@@ -306,20 +370,123 @@ def github_login():
 
     github_data = resp.json()
     github_id = github_data["login"]
+    github_profile = github_data.get("html_url")
+    github_email = github_data.get("email")
+    avatar_url = github_data.get("avatar_url")
+    name = github_data.get("name")
 
-    existing_user = users.find_one({"github_id": github_id})
-    if not existing_user:
-        users.insert_one({
-            "github_id": github_id,
-            "name": github_data.get("name"),
-            "email": github_data.get("email"),
-            "avatar_url": github_data.get("avatar_url"),
-            "github_profile": github_data.get("html_url")
-        })
+    # If the user already logged in with email before and wants to connect GitHub
+    if "user" in session and "github_id" not in session:
+        users.update_one(
+            {"email": session["user"]},
+            {
+                "$set": {
+                    "github_id": github_id,
+                    "github_profile": github_profile,
+                    "avatar_url": avatar_url,
+                    "name": name,
+                    "connected": True
+                }
+            }
+        )
+        session["github_id"] = github_id
+        flash("GitHub account connected successfully!", "success")
+        return redirect(url_for("dashboard", username=github_id))
+    else:
+        # Check if user exists by GitHub ID
+        existing_user = users.find_one({"github_id": github_id})
 
+        if not existing_user:
+            # Insert new GitHub-only user
+            users.insert_one({
+                "github_id": github_id,
+                "name": name,
+                "email": github_email,  # May be None if GitHub email is private
+                "avatar_url": avatar_url,
+                "github_profile": github_profile,
+                "connected": True
+            })
+
+    # Log in GitHub user
     session["github_id"] = github_id
-    flash("Logged in with GitHub successfully", "success")
+    flash("Logged in with GitHub successfully!", "success")
     return redirect(url_for("dashboard", username=github_id))
+
+@app.route("/logout")
+def logout():
+    # Clear all session data
+    session.clear()
+    flash("You have been logged out.", "info")
+    return redirect(url_for("home"))
+
+#fuctions:
+
+def compute_insights(repos):
+    now = datetime.utcnow()
+
+    # Prepare commit timestamps (already part of your fetch logic)
+    for repo in repos:
+        # You'll replace this with real commit timestamps per repo (last 100 is enough)
+        repo["commits"] = repo.get("commits", [])  # A list of commit dates in ISO format
+        repo["readme"] = repo.get("readme", "")     # Already fetched README content
+
+    # Most Active Repo
+    most_active = max(repos, key=lambda r: len(r["commits"]), default=None)
+
+    # Least Active Repo — exclude the most active one
+    def last_commit_time(repo):
+        dates = [datetime.strptime(c, "%Y-%m-%dT%H:%M:%SZ") for c in repo["commits"]]
+        return max(dates) if dates else datetime.min
+
+    repos_excl_most_active = [r for r in repos if r != most_active]
+    least_active = min(repos_excl_most_active, key=last_commit_time, default=None) if repos_excl_most_active else None
+
+
+    # Most Loved = stars / commits
+    most_loved = max(repos, key=lambda r: r["stargazers_count"] / max(len(r["commits"]), 1), default=None)
+
+    # Tech Stack
+    tech_keywords = ["react", "django", "flask", "node", "express", "vue", "tailwind", "next", "rest", "api", "typescript"]
+    tech_counter = Counter()
+
+    for repo in repos:
+        readme = repo.get("readme", "").lower()
+        for keyword in tech_keywords:
+            if keyword in readme:
+                tech_counter[keyword] += 1
+        lang = repo.get("language")
+        if lang:
+            tech_counter[lang.lower()] += 1
+
+    top_tech_stack = ", ".join([tech.title() for tech, _ in tech_counter.most_common(3)])
+
+    # Growth Tip
+    growth_tip = "Keep up the great work!"
+    for repo in repos:
+        if repo["stargazers_count"] > 50 and not repo.get("readme"):
+            growth_tip = f"Add a README to {repo['name']} — it's your most starred project but lacks documentation."
+            break
+
+    return {
+        "most_active_repo": most_active["name"] if most_active else "N/A",
+        "most_loved_repo": most_loved["name"] if most_loved else "N/A",
+        "least_active_repo": least_active["name"] if least_active else "N/A",
+        "top_tech_stack": top_tech_stack or "N/A",
+        "growth_tip": growth_tip
+    }
+
+def extract_tags(repo):
+    tags = set()
+    if repo.get("language"):
+        tags.add(repo["language"])
+    if repo.get("topics"):
+        tags.update(repo["topics"])
+    desc = (repo.get("description") or "") + " " + repo.get("name", "")
+    keywords = ["react", "django", "flask", "next", "vue", "express", "node", "typescript", "python", "go", "rust"]
+    for kw in keywords:
+        if kw.lower() in desc.lower():
+            tags.add(kw.title())
+    return sorted(tags)
 
 if __name__ == '__main__':
     app.run(debug=True)

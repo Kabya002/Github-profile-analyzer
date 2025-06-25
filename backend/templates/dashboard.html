@@ -32,6 +32,7 @@
     Connect GitHub Account
   </a>
 </section>
+
 {% elif user %}
 <!-- Profile & Repo Section -->
 <section class="min-h-screen bg-cover bg-center py-16 px-6 text-white relative"
@@ -46,7 +47,13 @@
       <div class="relative bg-black bg-opacity-60 p-8 rounded-lg flex flex-col md:flex-row items-center gap-6">
         <img src="{{ user.avatar_url }}" alt="Avatar" class="w-28 h-28 rounded-full border-4 border-white shadow-lg">
         <div class="text-center md:text-left">
-          <h2 class="text-3xl font-bold">{{ user.name or user.login }}</h2>
+          <div class="flex items-center md:justify-start gap-4">
+            <h2 class="text-3xl font-bold">{{ user.name or user.login }}</h2>
+            <button onclick="generatePDF()"
+              class="px-3 py-1 text-sm border border-white rounded bg-white/10 text-white hover:bg-white hover:text-black transition">
+              📄 Download PDF
+            </button>
+          </div>
           <p class="mt-1 text-sm">Followers: {{ user.followers }} | Repos: {{ user.public_repos }}</p>
           <p class="mt-2 text-sm italic">{{ user.bio or 'No bio provided.' }}</p>
           <a href="{{ user.html_url }}" target="_blank"
@@ -58,42 +65,158 @@
 
     <!-- Charts Section -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fadeInUp">
-      <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow text-white">
-        <h3 class="text-lg font-bold mb-4">Language Usage</h3>
-        <canvas id="languageChart" class="w-full max-w-3xl mx-auto mt-12"></canvas>
+
+      <!-- Bar Chart Card -->
+      <div
+        class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow text-white flex flex-col items-center justify-center min-h-[360px]">
+        <h3 class="text-lg font-bold mb-4 text-center">Language Usage</h3>
+        <div class="w-full h-64"> <!-- Limit height -->
+          <canvas id="languageChart" class="w-full h-full"></canvas>
+        </div>
       </div>
-      <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow text-white">
-        <h3 class="text-lg font-bold mb-4">Contribution Graph</h3>
-        <img src="https://ghchart.rshah.org/{{ user.login }}" alt="GitHub Contributions" class="w-full">
+
+      <!-- Contribution Graph Card -->
+      <div
+        class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow text-white flex flex-col items-center justify-center min-h-[360px]">
+        <h3 class="text-lg font-bold mb-4 text-center">Contribution Graph</h3>
+        <img src="https://ghchart.rshah.org/{{ user.login }}" alt="GitHub Contributions"
+          class="w-full max-w-lg mx-auto">
       </div>
     </div>
 
-    {% if repos %}
-    <!-- Repo Cards -->
-    <div class="space-y-10 animate-fadeInUp">
-      <h2 class="text-2xl font-bold border-b pb-2">Repositories</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {% for repo in repos[:6] %}
-        <div class="bg-white/10 backdrop-blur-md p-4 rounded-lg shadow hover:scale-[1.02] transition cursor-pointer"
-          onclick="location.href='{{ url_for('repo_detail', username=user.login, repo_name=repo.name) }}'">
-          <h4 class="font-semibold">{{ repo.name }}</h4>
-          <p class="text-sm text-gray-300">{{ repo.language or 'Unknown Language' }}</p>
-          <p class="text-sm mt-2">{{ repo.description or 'No description available.' }}</p>
-          <p class="text-sm mt-2">⭐ {{ repo.stargazers_count }} | 🍴 {{ repo.forks_count }}</p>
+    <!-- Smart GitHub Insights -->
+    <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow text-white animate-fadeInUp mt-8">
+      <h3 class="text-lg font-bold mb-4">🔍 Smart GitHub Insights</h3>
+      <ul class="space-y-2 text-sm">
+        <li>🏆 <strong>Most Active Repo:</strong> {{ insights.most_active_repo }}</li>
+        <li>🌟 <strong>Most Loved Project:</strong> {{ insights.most_loved_repo }}</li>
+        <li>💤 <strong>Least Active Repo:</strong> {{ insights.least_active_repo }}</li>
+        <li>🧪 <strong>Top Tech Stack:</strong> {{ insights.top_tech_stack }}</li>
+        <li>🚀 <strong>Growth Tip:</strong> {{ insights.growth_tip | safe }}</li>
+      </ul>
+    </div>
+
+    <!-- 🔍 Tech Stack + Project Explorer -->
+    <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow text-white animate-fadeInUp mt-8">
+      <h3 class="text-lg font-bold mb-4">🛠 Tech Stack + Project Explorer</h3>
+
+      <!-- Filter Controls -->
+      <div class="flex flex-wrap gap-4 mb-6 text-sm items-center">
+        <!-- Filter by Stack -->
+        <div class="relative">
+          <label class="font-medium text-white block mb-1">Filter by Stack:</label>
+          <button id="techDropdownBtn"
+            class="bg-white/10 text-white border border-white px-4 py-2 rounded text-sm focus:outline-none w-48 text-left">
+            <span id="techDropdownLabel">All</span>
+            <svg class="w-4 h-4 inline-block float-right" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.23 8.29a.75.75 0 01.02-1.08z"
+                clip-rule="evenodd" />
+            </svg>
+          </button>
+          <ul id="techDropdownList"
+            class="absolute z-50 bg-white/10 text-white border border-white mt-1 rounded shadow w-48 hidden divide-y divide-white/10">
+            <li class="px-4 py-2 hover:bg-white/30 cursor-pointer" data-value="All">All</li>
+            {% for tech in stack_tags %}
+            <li class="px-4 py-2 hover:bg-white/30 cursor-pointer" data-value="{{ tech }}">{{ tech }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <!-- Sort Option -->
+        <div class="relative">
+          <label class="font-medium text-white block mb-1">Sort by:</label>
+          <button id="sortDropdownBtn"
+            class="bg-white/10 text-white border border-white px-4 py-2 rounded text-sm focus:outline-none w-48 text-left">
+            <span id="sortDropdownLabel">Last Updated</span>
+            <svg class="w-4 h-4 inline-block float-right" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.23 8.29a.75.75 0 01.02-1.08z"
+                clip-rule="evenodd" />
+            </svg>
+          </button>
+          <ul id="sortDropdownList"
+            class="absolute z-50 bg-white/10 text-white border border-white mt-1 rounded shadow w-48 hidden divide-y divide-white/10">
+            <li class="px-4 py-2 hover:bg-white/30 cursor-pointer" data-value="updated">Last Updated</li>
+            <li class="px-4 py-2 hover:bg-white/30 cursor-pointer" data-value="stars">Star Count</li>
+          </ul>
+        </div>
+      </div>
+      <!-- Repo Cards -->
+      <div id="stackedRepos" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        {% for repo in repos %}
+        <div
+          class="repo-card bg-white/10 backdrop-blur-md p-4 rounded-lg shadow hover:scale-[1.02] transition cursor-pointer hidden"
+          data-tags="{{ repo.tags | join(',') }}" data-stars="{{ repo.stargazers_count }}"
+          data-updated="{{ repo.updated_at }}">
+          <h4 class="font-semibold text-lg">{{ repo.name }}</h4>
+          <p class="text-sm text-gray-300 mb-2">{{ repo.description or 'No description available.' }}</p>
+          <p class="text-sm">🧪 Stack: {{ repo.tags | join(', ') }}</p>
+          <p class="text-sm mt-1">⭐ {{ repo.stargazers_count }} | 🕒 {{ repo.updated_at[:10] }}</p>
+          <button onclick="location.href='{{ url_for('repo_detail', username=user.login, repo_name=repo.name) }}'"
+            class="mt-4 inline-block px-4 py-2 text-sm border border-white rounded hover:bg-white hover:text-black transition">
+            View Details
+          </button>
+
         </div>
         {% endfor %}
       </div>
-    </div>
-    {% endif %}
 
-  </div>
+      <!-- Load More Button -->
+      {% if repos|length > 6 %}
+      <div class="text-center mt-6">
+        <button id="loadMoreBtn"
+          class="px-4 py-2 border border-white rounded hover:bg-white hover:text-black transition">
+          Load More
+        </button>
+      </div>
+      {% endif %}
+    </div>
+
 </section>
 {% endif %}
+<!-- download resumwe -->
+<div id="resume" class="hidden p-8 text-black bg-white w-[794px] mx-auto">
+  <div class="flex items-center gap-6">
+    <img src="{{ user.avatar_url }}" class="w-28 h-28 rounded-full border border-black" />
+    <div>
+      <h1 class="text-2xl font-bold">{{ user.name or user.login }}</h1>
+      <p>{{ user.bio or 'No bio provided.' }}</p>
+      <p class="text-sm text-gray-700">Followers: {{ user.followers }} | Public Repos: {{ user.public_repos }}</p>
+      <p class="text-sm text-gray-700">GitHub: {{ user.html_url }}</p>
+    </div>
+  </div>
+
+  <hr class="my-4 border-black">
+
+  <h2 class="text-xl font-bold mb-2">📁 Top Repositories</h2>
+  {% for repo in repos[:6] %}
+  <div class="mb-2">
+    <strong>{{ repo.name }}</strong> - {{ repo.description or 'No description' }}
+    <div class="text-sm text-gray-700">⭐ {{ repo.stargazers_count }} | 🍴 {{ repo.forks_count }}</div>
+  </div>
+  {% endfor %}
+
+  <hr class="my-4 border-black">
+
+  <h2 class="text-xl font-bold mb-2">🧠 Languages</h2>
+  <ul class="list-disc ml-6">
+    {% for lang in language_data.labels %}
+    <li>{{ lang }}</li>
+    {% endfor %}
+  </ul>
+
+  <hr class="my-4 border-black">
+
+  <h2 class="text-xl font-bold mb-2">📊 Contribution Graph</h2>
+  <img src="https://ghchart.rshah.org/{{ user.login }}" class="w-full border border-black" />
+</div>
+
 {% endblock %}
+
 {% block scripts %}
 {{ super() }}
-<!-- Include Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- dynamic search -->
 <script>
   const usernameInput = document.getElementById("usernameInput");
   const baseUrl = "{{ url_for('dashboard', username=logged_in_username) }}";
@@ -112,7 +235,7 @@
     }
   });
 </script>
-
+<!--github login-->
 <script>
   const input = document.getElementById("usernameInput");
   input.addEventListener("input", () => {
@@ -128,58 +251,200 @@
   });
 </script>
 
-{% if language_data %}
+<!--repo dropdown-->
 <script>
-  const ctx = document.getElementById('languageChart').getContext('2d');
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: {{ language_data["labels"] | tojson }},
-    datasets: [{
-      label: 'Language Usage (%)',
-      data: {{ language_data["values"] | tojson }},
-    backgroundColor: [
-      '#60a5fa', '#f472b6', '#34d399', '#fbbf24',
-      '#a78bfa', '#fb7185', '#facc15'
-    ],
-    borderRadius: 6,
-    borderSkipped: false
-      }]
-    },
-    options: {
-    responsive: true,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: function (context) {
-            return `${context.label}: ${context.parsed.y}%`;
-          }
-        }
+  // Utility to attach custom dropdown behavior
+  function setupDropdown(buttonId, listId, labelId, callback) {
+    const btn = document.getElementById(buttonId);
+    const list = document.getElementById(listId);
+    const label = document.getElementById(labelId);
+
+    btn.addEventListener("click", () => {
+      list.classList.toggle("hidden");
+    });
+
+    list.querySelectorAll("li").forEach(item => {
+      item.addEventListener("click", () => {
+        const selected = item.dataset.value;
+        label.textContent = item.textContent;
+        btn.dataset.value = selected;
+        list.classList.add("hidden");
+        if (callback) callback(selected);
+      });
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener("click", e => {
+      if (!btn.contains(e.target) && !list.contains(e.target)) {
+        list.classList.add("hidden");
       }
-    },
-    scales: {
-      x: {
-        ticks: { color: 'white', font: { weight: 'bold' } },
-        grid: { color: 'rgba(255,255,255,0.1)' }
-      },
-      y: {
-        ticks: {
-          color: 'white',
-          callback: val => `${val}%`
-        },
-        grid: { color: 'rgba(255,255,255,0.1)' },
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'Percentage',
-          color: 'white'
-        }
+    });
+  }
+
+  // Repo Card Filtering and Sorting
+  let visibleCount = 6;
+  const increment = 3;
+  const repoCards = Array.from(document.querySelectorAll(".repo-card"));
+  const loadMoreBtn = document.getElementById("loadMoreBtn");
+
+  function filterAndSort() {
+    const tech = document.getElementById("techDropdownBtn").dataset.value || "All";
+    const sortBy = document.getElementById("sortDropdownBtn").dataset.value || "updated";
+
+    // Filter
+    let filtered = repoCards.filter(card => {
+      const tags = card.dataset.tags.split(",");
+      return tech === "All" || tags.includes(tech);
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      if (sortBy === "stars") {
+        return parseInt(b.dataset.stars || "0") - parseInt(a.dataset.stars || "0");
+      } else {
+        return new Date(b.dataset.updated) - new Date(a.dataset.updated);
+      }
+    });
+
+    // Hide all
+    repoCards.forEach(card => card.classList.add("hidden"));
+    // Show only up to visibleCount
+    filtered.slice(0, visibleCount).forEach(card => card.classList.remove("hidden"));
+
+    // Update button
+    if (loadMoreBtn) {
+      if (visibleCount >= filtered.length) {
+        loadMoreBtn.textContent = "Collapse";
+      } else {
+        loadMoreBtn.textContent = "Load More";
       }
     }
   }
+
+  // Load More Handler
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener("click", () => {
+      const tech = document.getElementById("techDropdownBtn").dataset.value || "All";
+      let filtered = repoCards.filter(card => {
+        const tags = card.dataset.tags.split(",");
+        return tech === "All" || tags.includes(tech);
+      });
+
+      if (visibleCount >= filtered.length) {
+        visibleCount = 6;
+      } else {
+        visibleCount += increment;
+      }
+
+      filterAndSort();
+    });
+  }
+
+  // Setup dropdowns
+  setupDropdown("techDropdownBtn", "techDropdownList", "techDropdownLabel", () => {
+    visibleCount = 6;
+    filterAndSort();
+  });
+
+  setupDropdown("sortDropdownBtn", "sortDropdownList", "sortDropdownLabel", filterAndSort);
+
+  // Initial render
+  filterAndSort();
+</script>
+<!--download resume -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function generatePDF() {
+  const element = document.getElementById('resume');
+  const opt = {
+    margin: 0.5,
+    filename: 'github_resume.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+  };
+  html2pdf().set(opt).from(element).save();
+}
+</script>
+
+
+<!--Bar chart-->
+{% if language_data %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const canvas = document.getElementById("languageChart");
+    if (!canvas) {
+      console.warn("languageChart canvas not found.");
+      return;
+    }
+
+    const ctx = canvas.getContext("2d");
+    const labels = {{ language_data["labels"] | tojson }};
+    const data = {{ language_data["values"] | tojson }};
+
+    if (!labels.length || !data.length) {
+      console.warn("Chart data is empty.");
+      return;
+    }
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Language Usage (%)',
+          data: data,
+          backgroundColor: [
+            '#60a5fa', '#f472b6', '#34d399', '#fbbf24',
+            '#a78bfa', '#fb7185', '#facc15'
+          ],
+          borderRadius: 6,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                return `${context.label}: ${context.parsed.y}%`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: 'white',
+              font: { weight: 'bold' }
+            },
+            grid: { color: 'rgba(255,255,255,0.1)' }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: 'white',
+              callback: val => `${val}%`
+            },
+            grid: { color: 'rgba(255,255,255,0.1)' },
+            title: {
+              display: true,
+              text: 'Percentage',
+              color: 'white'
+            }
+          }
+        }
+      }
+    });
   });
 </script>
 {% endif %}
+
+
+
+
 
 {% endblock %}

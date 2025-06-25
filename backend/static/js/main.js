@@ -9,19 +9,25 @@ function toggleDarkMode() {
 }
 
 // Navbar Auto Hide on Scroll
-let lastScrollTop = 0;
-const navbar = document.getElementById("navbar");
-if (navbar) {
+document.addEventListener("DOMContentLoaded", function () {
+  const navbar = document.getElementById("navbar");
+  let lastScrollTop = 0;
+
   window.addEventListener("scroll", function () {
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    if (scrollTop > lastScrollTop) {
+
+    // Scroll down → hide
+    if (scrollTop > lastScrollTop && scrollTop > 50) {
       navbar.classList.add("-translate-y-full");
-    } else {
+    }
+    // Scroll up → show
+    else {
       navbar.classList.remove("-translate-y-full");
     }
+
     lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
   });
-}
+});
 
 // Readme Toggle Functionality
 function toggleReadme() {
@@ -41,7 +47,6 @@ function toggleReadme() {
     }
   }
 }
-
 
 // Swiper Slider Init (if needed on page)
 if (document.querySelector(".mySwiper")) {
@@ -67,3 +72,11 @@ if (document.querySelector(".mySwiper")) {
     const tree = document.getElementById("folderTreeContent");
     tree.classList.toggle("hidden");
   }
+
+//flash messeges 
+setTimeout(() => {
+    document.querySelectorAll('.flash-message').forEach(el => {
+        el.classList.add('animate-slideUp');
+        setTimeout(() => el.remove(), 2500); // give time for animation to finish
+    });
+}, 2500);

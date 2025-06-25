@@ -4,96 +4,96 @@
 
 {% block content %}
 <!-- Hero Section -->
-<section class="h-screen w-full bg-cover bg-center flex items-center justify-center text-center px-4 animate-fadeInUp"
+<section class="min-h-screen bg-cover bg-center py-16 px-6 text-white relative"
   style="background-image: url('/static/images/hero-bg.jpeg');">
-  <div class="bg-black bg-opacity-60 p-8 rounded-lg">
-    <h1 class="text-5xl md:text-6xl font-bold text-white">Your customers will love you<br /> one minute from now.</h1>
-    <p class="mt-6 text-lg text-white">See how your users experience your website in realtime.</p>
-    <form action="/search" method="get" class="mt-6 flex justify-center gap-2">
-      <input type="text" name="username" placeholder="Search GitHub user"
-        class="px-4 py-2 text-sm bg-transparent border border-white rounded text-white placeholder-white focus:outline-none focus:bg-white focus:text-black transition" />
-      <button type="submit"
-        class="px-4 py-2 text-sm border border-white rounded hover:bg-white hover:text-black transition">
-        Search
-      </button>
-    </form>
+  <section
+    class="h-screen w-full bg-cover bg-center flex items-center justify-center text-center px-4 animate-fadeInUp">
+    <div class="bg-black bg-opacity-60 p-8 rounded-lg">
+      <h1 class="text-5xl md:text-6xl font-bold text-white">Your customers will love you<br /> one minute from now.</h1>
+      <p class="mt-6 text-lg text-white">See how your users experience your website in realtime.</p>
+      <form action="/search" method="get" class="mt-6 flex justify-center gap-2">
+        <input type="text" name="username" placeholder="Search GitHub user"
+          class="px-4 py-2 text-sm bg-transparent border border-white rounded text-white placeholder-white focus:outline-none focus:bg-white focus:text-black transition" />
+        <button type="submit"
+          class="px-4 py-2 text-sm border border-white rounded hover:bg-white hover:text-black transition">
+          Search
+        </button>
+      </form>
 
-  </div>
+    </div>
+  </section>
+
+  <!-- Swiper Carousel Section with background image -->
+  <section class="w-full bg-cover bg-center flex items-center justify-center relative">
+    <div class="bg-black bg-opacity-60 w-10/12 h-[550px] flex items-center justify-center">
+      <div class="swiper mySwiper w-10/12 h-[550px] bg-white/10 backdrop-blur-sm rounded-xl">
+        <div class="swiper-wrapper">
+          {% for i in range(1, 6) %}
+          <div class="swiper-slide relative bg-cover bg-center h-full flex flex-col justify-end"
+            style="background-image: url('/static/images/shot{{ i }}.png');">
+            <div class="bg-black bg-opacity-60 w-full text-center p-6 absolute bottom-0">
+
+              <h2 class="text-4xl font-bold text-white mb-2">Feature {{ i }}</h2>
+              <p class="text-white text-lg">This is a description for Feature {{ i }}. Overlaid on the image bottom
+                center.</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <!-- Navigation buttons -->
+        <div class="swiper-button-next"></div>
+        <div class="swiper-button-prev"></div>
+        <div class="swiper-pagination"></div>
+      </div>
+    </div>
+  </section>
 </section>
 
-<!-- Swiper Carousel Section with background image -->
-<section class="min-h-[120vh] w-full bg-cover bg-center flex items-center justify-center relative"
+<!-- Meet the Creator + Projects Section -->
+<section class="min-h-screen bg-cover bg-center py-16 px-6 text-white relative"
   style="background-image: url('/static/images/hero-bg.jpeg');">
-  <div class="bg-black bg-opacity-60 w-10/12 h-[550px] flex items-center justify-center">
-    <div class="swiper mySwiper w-10/12 h-[550px] bg-white/10 backdrop-blur-sm rounded-xl overflow-hidden">
-      <div class="swiper-wrapper">
-        {% for i in range(1, 6) %}
-        <div class="swiper-slide relative bg-cover bg-center h-full flex flex-col justify-end"
-          style="background-image: url('/static/images/shot{{ i }}.png');">
-          <div class="bg-black bg-opacity-60 w-full text-center p-6 absolute bottom-0">
+  <section class="min-h-screen w-full bg-cover bg-center flex items-center justify-center px-4 relative">
+    <div class="bg-black bg-opacity-60 p-8 rounded-lg shadow-lg max-w-5xl w-full flex flex-col items-center">
+      <!-- Creator Info -->
+      <div class="mb-10">
+        <img src="/static/images/creator.jpg" alt="Creator"
+          class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-white">
+        <h3 class="text-2xl font-bold text-white text-center">Kabyashree Gogoi</h3>
+        <p class="text-white mt-2 text-center">Passionate Web Developer & Creator of GitHub Profile Analyzer</p>
+      </div>
 
-            <h2 class="text-4xl font-bold text-white mb-2">Feature {{ i }}</h2>
-            <p class="text-white text-lg">This is a description for Feature {{ i }}. Overlaid on the image bottom
-              center.</p>
+      <!-- Project Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {% for project in projects %}
+        <div
+          class="bg-white/10 backdrop-blur p-4 rounded-lg shadow-lg text-left text-white flex flex-col justify-between">
+          <div class="mb-4">
+            <img src="{{ project.image }}" alt="{{ project.title }} image"
+              class="h-40 w-full object-cover rounded mb-4 shadow-md">
+
+            <h4 class="text-lg font-semibold">{{ project.title }}</h4>
+            <p class="text-sm mt-2">{{ project.desc }}</p>
+          </div>
+          <div class="flex justify-between items-center mt-auto">
+            <div class="space-x-2">
+              <a href="{{ project.link }}" target="_blank">
+                <button
+                  class="px-3 py-1 text-sm border border-white rounded hover:bg-white hover:text-black transition">
+                  View
+                </button>
+              </a>
+            </div>
+            <small class="text-xs opacity-70">{{ project.time }}</small>
           </div>
         </div>
         {% endfor %}
       </div>
-      <!-- Navigation buttons -->
-      <div class="swiper-button-next"></div>
-      <div class="swiper-button-prev"></div>
-      <div class="swiper-pagination"></div>
     </div>
-  </div>
-</section>
-
-<!-- Meet the Creator + Projects Section -->
-<section class="min-h-screen w-full bg-cover bg-center flex items-center justify-center px-4 relative"
-  style="background-image: url('/static/images/hero-bg.jpeg');">
-  <div class="bg-black bg-opacity-60 p-8 rounded-lg shadow-lg max-w-5xl w-full flex flex-col items-center">
-    <!-- Creator Info -->
-    <div class="mb-10">
-      <img src="/static/images/creator.jpg" alt="Creator"
-        class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-white">
-      <h3 class="text-2xl font-bold text-white text-center">Kabyashree Gogoi</h3>
-      <p class="text-white mt-2 text-center">Passionate Web Developer & Creator of GitHub Profile Analyzer</p>
-
-    </div>
-
-    <!-- Project Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {% for project in [
-      {'title': 'Portfolio Website', 'desc': 'A modern developer portfolio with animations.', 'time': '2 days ago'},
-      {'title': 'Task Manager', 'desc': 'A simple task management app with deadlines.', 'time': '1 week ago'},
-      {'title': 'Blog Platform', 'desc': 'Minimal blog CMS built with Flask & MongoDB.', 'time': '1 month ago'}
-      ] %}
-      <div
-        class="bg-white/10 backdrop-blur p-4 rounded-lg shadow-lg text-left text-white flex flex-col justify-between">
-        <div class="mb-4">
-          <div class="h-40 w-full bg-gray-600 rounded mb-4 flex items-center justify-center">
-            <span class="text-white font-bold">Thumbnail</span>
-          </div>
-          <h4 class="text-lg font-semibold">{{ project.title }}</h4>
-          <p class="text-sm mt-2">{{ project.desc }}</p>
-        </div>
-        <div class="flex justify-between items-center mt-auto">
-          <div class="space-x-2">
-            <button
-              class="px-3 py-1 text-sm border border-white rounded hover:bg-white hover:text-black transition">View</button>
-            <button
-              class="px-3 py-1 text-sm border border-white rounded hover:bg-white hover:text-black transition">Edit</button>
-          </div>
-          <small class="text-xs opacity-70">{{ project.time }}</small>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
+  </section>
 </section>
 
 <!-- Contact Section -->
-<section class="min-h-screen w-full bg-cover bg-center flex items-center justify-center px-4 py-10"
-  style="background-image: url('/static/images/hero-bg.jpeg');">
+<section class="min-h-screen w-full bg-cover bg-center flex items-center justify-center px-4 py-10">
   <div class="w-full max-w-md bg-black bg-opacity-60 p-8 rounded-2xl shadow-lg backdrop-blur-md animate-fadeInUp">
     <h2 class="text-2xl font-bold text-white text-center mb-6">Get in Touch</h2>
     <form method="POST" action="/contact">
@@ -114,6 +114,7 @@
       </div>
     </form>
   </div>
+</section>
 </section>
 {% endblock %}
 
