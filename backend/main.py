@@ -419,6 +419,10 @@ def logout():
     flash("You have been logged out.", "info")
     return redirect(url_for("home"))
 
+@app.route('/healthz')
+def health():
+    return "ok", 200
+
 #fuctions:
 
 def compute_insights(repos):
@@ -489,4 +493,5 @@ def extract_tags(repo):
     return sorted(tags)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

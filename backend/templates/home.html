@@ -28,13 +28,17 @@
     <div class="bg-black bg-opacity-60 w-10/12 h-[550px] flex items-center justify-center">
       <div class="swiper mySwiper w-10/12 h-[550px] bg-white/10 backdrop-blur-sm rounded-xl">
         <div class="swiper-wrapper">
-          {% for i in range(1, 6) %}
-          <div class="swiper-slide relative bg-cover bg-center h-full flex flex-col justify-end"
-            style="background-image: url('/static/images/shot{{ i }}.png');">
-            <div class="bg-black bg-opacity-60 w-full text-center p-6 absolute bottom-0">
+          {% for i in range(1, 2) %}
+          <div class="swiper-slide relative bg-cover bg-center h-full flex flex-col justify-end">
+            <!-- Replace image with video -->
+            <video preload="auto" autoplay muted loop playsinline
+              class="absolute inset-0 object-cover w-full h-full rounded-xl"
+              src="{{ url_for('static', filename='videos/demo' ~ i ~ '.mp4') }}"></video>
 
+
+            <div class="bg-black bg-opacity-60 w-full text-center p-6 absolute bottom-0 z-10">
               <h2 class="text-4xl font-bold text-white mb-2">Feature {{ i }}</h2>
-              <p class="text-white text-lg">This is a description for Feature {{ i }}. Overlaid on the image bottom
+              <p class="text-white text-lg">This is a description for Feature {{ i }}. Overlaid on the video bottom
                 center.</p>
             </div>
           </div>
@@ -47,6 +51,7 @@
       </div>
     </div>
   </section>
+
 </section>
 
 <!-- Meet the Creator + Projects Section -->
@@ -120,12 +125,12 @@
 
 {% block scripts %}
 {{ super() }}
-<!-- Swiper JS -->
+<!-- Swiper JS 
 <script>
   const swiper = new Swiper(".mySwiper", {
     loop: true,
     autoplay: {
-      delay: 1500,
+      delay: 25000,
       disableOnInteraction: false,
       pauseOnMouseEnter: true
     },
@@ -138,5 +143,20 @@
       prevEl: ".swiper-button-prev",
     },
   });
+</script> -->
+<script>
+  const swiper = new Swiper(".mySwiper", {
+    loop: true,
+    autoplay: false, // ⛔ Disable autoplay
+    pagination: {
+      el: ".swiper-pagination",
+      clickable: true,
+    },
+    navigation: {
+      nextEl: ".swiper-button-next",
+      prevEl: ".swiper-button-prev",
+    },
+  });
 </script>
+
 {% endblock %}
