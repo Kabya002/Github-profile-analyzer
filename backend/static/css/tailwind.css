@@ -164,24 +164,6 @@ html,
   /* 7 */
 }
 
-/*resume*/ 
-#resume * {
-  box-sizing: border-box;
-}
-
-.page-break {
-  page-break-before: always;
-}
-
-@media print {
-  #resume {
-    width: 210mm;
-    min-height: 297mm;
-    margin: 0 auto;
-  }
-}
-
-
 /*
 1. Remove the margin in all browsers.
 2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.
@@ -1171,9 +1153,9 @@ video {
   margin-right: auto;
 }
 
-.my-4 {
-  margin-top: 1rem;
-  margin-bottom: 1rem;
+.my-2 {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .mb-1 {
@@ -1200,8 +1182,8 @@ video {
   margin-left: 1rem;
 }
 
-.ml-6 {
-  margin-left: 1.5rem;
+.ml-5 {
+  margin-left: 1.25rem;
 }
 
 .mt-1 {
@@ -1294,6 +1276,10 @@ video {
 
 .h-screen {
   height: 100vh;
+}
+
+.min-h-\[1123px\] {
+  min-height: 1123px;
 }
 
 .min-h-\[360px\] {
@@ -1458,6 +1444,10 @@ video {
   flex-wrap: wrap;
 }
 
+.items-start {
+  align-items: flex-start;
+}
+
 .items-center {
   align-items: center;
 }
@@ -1556,6 +1546,10 @@ video {
 
 .overflow-x-hidden {
   overflow-x: hidden;
+}
+
+.break-all {
+  word-break: break-all;
 }
 
 .rounded {
@@ -1683,6 +1677,11 @@ video {
   padding-right: 1.5rem;
 }
 
+.px-8 {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
 .py-1 {
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
@@ -1718,16 +1717,17 @@ video {
   padding-bottom: 1rem;
 }
 
+.py-6 {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
 .pb-2 {
   padding-bottom: 0.5rem;
 }
 
 .pt-24 {
   padding-top: 6rem;
-}
-
-.pt-4 {
-  padding-top: 1rem;
 }
 
 .text-left {
@@ -1756,6 +1756,22 @@ video {
 .text-5xl {
   font-size: 3rem;
   line-height: 1;
+}
+
+.text-\[10pt\] {
+  font-size: 10pt;
+}
+
+.text-\[12pt\] {
+  font-size: 12pt;
+}
+
+.text-\[14pt\] {
+  font-size: 14pt;
+}
+
+.text-\[9pt\] {
+  font-size: 9pt;
 }
 
 .text-base {
@@ -1803,6 +1819,14 @@ video {
   line-height: 1;
 }
 
+.leading-relaxed {
+  line-height: 1.625;
+}
+
+.leading-tight {
+  line-height: 1.25;
+}
+
 .text-\[\#0A2647\] {
   --tw-text-opacity: 1;
   color: rgb(10 38 71 / var(--tw-text-opacity, 1));
@@ -1826,6 +1850,11 @@ video {
 .text-white {
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
+}
+
+.text-yellow-300 {
+  --tw-text-opacity: 1;
+  color: rgb(253 224 71 / var(--tw-text-opacity, 1));
 }
 
 .underline {
@@ -1966,6 +1995,10 @@ video {
 .hover\:text-white:hover {
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
+}
+
+.hover\:underline:hover {
+  text-decoration-line: underline;
 }
 
 .focus\:bg-white:focus {
