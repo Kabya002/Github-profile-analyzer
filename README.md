@@ -23,7 +23,7 @@ A clean, interactive web tool to fetch and visualize key details from any GitHub
 | Frontend      | Tailwind CSS, SwiperJS, Font Awesome |
 | Backend       | Flask (Python)                     |
 | Template Engine | Jinja2                          |
-| Hosting       | Coming soon…                       |
+| Hosting       | Render                      |
 ---
 
 ## Installation & Local Setup
