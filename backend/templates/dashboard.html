@@ -86,19 +86,19 @@
 
     <!-- Smart GitHub Insights -->
     <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow text-white animate-fadeInUp mt-8">
-      <h3 class="text-lg font-bold mb-4">🔍 Smart GitHub Insights</h3>
+      <h3 class="text-lg font-bold mb-4"> Smart GitHub Insights</h3>
       <ul class="space-y-2 text-sm">
-        <li>🏆 <strong>Most Active Repo:</strong> {{ insights.most_active_repo }}</li>
-        <li>🌟 <strong>Most Loved Project:</strong> {{ insights.most_loved_repo }}</li>
-        <li>💤 <strong>Least Active Repo:</strong> {{ insights.least_active_repo }}</li>
-        <li>🧪 <strong>Top Tech Stack:</strong> {{ insights.top_tech_stack }}</li>
-        <li>🚀 <strong>Growth Tip:</strong> {{ insights.growth_tip | safe }}</li>
+        <li> <strong>Most Active Repo:</strong> {{ insights.most_active_repo }}</li>
+        <li><strong>Most Loved Project:</strong> {{ insights.most_loved_repo }}</li>
+        <li><strong>Least Active Repo:</strong> {{ insights.least_active_repo }}</li>
+        <li><strong>Top Tech Stack:</strong> {{ insights.top_tech_stack }}</li>
+        <li><strong>Growth Tip:</strong> {{ insights.growth_tip | safe }}</li>
       </ul>
     </div>
 
-    <!-- 🔍 Tech Stack + Project Explorer -->
+    <!-- Tech Stack + Project Explorer -->
     <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow text-white animate-fadeInUp mt-8">
-      <h3 class="text-lg font-bold mb-4">🛠 Tech Stack + Project Explorer</h3>
+      <h3 class="text-lg font-bold mb-4">Tech Stack + Project Explorer</h3>
 
       <!-- Filter Controls -->
       <div class="flex flex-wrap gap-4 mb-6 text-sm items-center">
@@ -151,8 +151,8 @@
           data-updated="{{ repo.updated_at }}">
           <h4 class="font-semibold text-lg">{{ repo.name }}</h4>
           <p class="text-sm text-gray-300 mb-2">{{ repo.description or 'No description available.' }}</p>
-          <p class="text-sm">🧪 Stack: {{ repo.tags | join(', ') }}</p>
-          <p class="text-sm mt-1">⭐ {{ repo.stargazers_count }} | 🕒 {{ repo.updated_at[:10] }}</p>
+          <p class="text-sm">Stack: {{ repo.tags | join(', ') }}</p>
+          <p class="text-sm mt-1">⭐ {{ repo.stargazers_count }} | {{ repo.updated_at[:10] }}</p>
           <button onclick="location.href='{{ url_for('repo_detail', username=user.login, repo_name=repo.name) }}'"
             class="mt-4 inline-block px-4 py-2 text-sm border border-white rounded hover:bg-white hover:text-black transition">
             View Details
@@ -175,43 +175,54 @@
 
 </section>
 {% endif %}
-<!-- download resumwe -->
-<div id="resume" class="hidden p-8 text-black bg-white w-[794px] mx-auto">
-  <div class="flex items-center gap-6">
-    <img src="{{ user.avatar_url }}" class="w-28 h-28 rounded-full border border-black" />
-    <div>
-      <h1 class="text-2xl font-bold">{{ user.name or user.login }}</h1>
-      <p>{{ user.bio or 'No bio provided.' }}</p>
-      <p class="text-sm text-gray-700">Followers: {{ user.followers }} | Public Repos: {{ user.public_repos }}</p>
-      <p class="text-sm text-gray-700">GitHub: {{ user.html_url }}</p>
+<!-- download resume -->
+<div id="resume"
+  class="hidden mx-auto bg-white text-black px-8 py-6 w-[794px] min-h-[1123px] text-[10pt] leading-relaxed space-y-4">
+  <!-- Header -->
+  <div class="flex items-start gap-4">
+    <img src="{{ user.avatar_url }}" style="width: 1.5in; height: 1.5in; object-fit: cover;"
+      class="rounded-full border border-black" crossorigin="anonymous" />
+    <div class="flex-1">
+      <h1 class="text-[14pt] font-bold leading-tight">{{ user.name or user.login }}</h1>
+      <p class="mt-1">{{ user.bio or 'No bio provided.' }}</p>
+      <p class="text-gray-700 mt-1">Followers: {{ user.followers }} | Public Repos: {{ user.public_repos }}</p>
+      <p class="text-gray-700 break-all">GitHub: {{ user.html_url }}</p>
     </div>
   </div>
 
-  <hr class="my-4 border-black">
+  <hr class="border-black my-2">
 
-  <h2 class="text-xl font-bold mb-2">📁 Top Repositories</h2>
-  {% for repo in repos[:6] %}
-  <div class="mb-2">
-    <strong>{{ repo.name }}</strong> - {{ repo.description or 'No description' }}
-    <div class="text-sm text-gray-700">⭐ {{ repo.stargazers_count }} | 🍴 {{ repo.forks_count }}</div>
-  </div>
-  {% endfor %}
-
-  <hr class="my-4 border-black">
-
-  <h2 class="text-xl font-bold mb-2">🧠 Languages</h2>
-  <ul class="list-disc ml-6">
-    {% for lang in language_data.labels %}
-    <li>{{ lang }}</li>
+  <!-- Repositories -->
+  <div>
+    <h2 class="text-[12pt] font-bold mb-1">Top Repositories</h2>
+    {% for repo in repos[:6] %}
+    <div class="mb-1">
+      <strong>{{ repo.name }}</strong> - <span>{{ repo.description or 'No description' }}</span>
+      <div class="text-gray-700 text-[9pt]">⭐ {{ repo.stargazers_count }} | 🍴 {{ repo.forks_count }}</div>
+    </div>
     {% endfor %}
-  </ul>
+  </div>
 
-  <hr class="my-4 border-black">
+  <hr class="border-black my-2">
 
-  <h2 class="text-xl font-bold mb-2">📊 Contribution Graph</h2>
-  <img src="https://ghchart.rshah.org/{{ user.login }}" class="w-full border border-black" />
+  <!-- Languages -->
+  <div>
+    <h2 class="text-[12pt] font-bold mb-1">Languages</h2>
+    <ul class="list-disc ml-5 text-[10pt]">
+      {% for lang in language_data.labels %}
+      <li>{{ lang }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <hr class="border-black my-2">
+
+  <!-- Contribution Graph -->
+  <div>
+    <h2 class="text-[12pt] font-bold mb-1">Contribution Graph</h2>
+    <img src="https://ghchart.rshah.org/{{ user.login }}" class="w-full border border-black" crossorigin="anonymous" />
+  </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
@@ -250,10 +261,8 @@
     }
   });
 </script>
-
 <!--repo dropdown-->
 <script>
-  // Utility to attach custom dropdown behavior
   function setupDropdown(buttonId, listId, labelId, callback) {
     const btn = document.getElementById(buttonId);
     const list = document.getElementById(listId);
@@ -354,20 +363,49 @@
 <!--download resume -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
-function generatePDF() {
-  const element = document.getElementById('resume');
-  const opt = {
-    margin: 0.5,
-    filename: 'github_resume.pdf',
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2 },
-    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-  };
-  html2pdf().set(opt).from(element).save();
-}
+  function generatePDF() {
+    const element = document.getElementById('resume');
+    element.classList.remove('hidden');
+
+    // Wait for images to load first
+    const images = element.querySelectorAll("img");
+    let loaded = 0;
+
+    if (images.length === 0) {
+      downloadPDF();
+    }
+
+    images.forEach(img => {
+      if (img.complete) {
+        loaded++;
+        if (loaded === images.length) downloadPDF();
+      } else {
+        img.onload = () => {
+          loaded++;
+          if (loaded === images.length) downloadPDF();
+        };
+        img.onerror = () => {
+          loaded++;
+          if (loaded === images.length) downloadPDF();
+        };
+      }
+    });
+
+    function downloadPDF() {
+      const opt = {
+        margin: 0.5,
+        filename: 'github_resume.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+      };
+
+      html2pdf().set(opt).from(element).save().then(() => {
+        element.classList.add('hidden');
+      });
+    }
+  }
 </script>
-
-
 <!--Bar chart-->
 {% if language_data %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -380,71 +418,67 @@ function generatePDF() {
     }
 
     const ctx = canvas.getContext("2d");
-    const labels = {{ language_data["labels"] | tojson }};
-    const data = {{ language_data["values"] | tojson }};
+    const labels = {{ language_data["labels"] | tojson
+  }};
+  const data = {{ language_data["values"] | tojson }};
 
-    if (!labels.length || !data.length) {
-      console.warn("Chart data is empty.");
-      return;
-    }
+  if (!labels.length || !data.length) {
+    console.warn("Chart data is empty.");
+    return;
+  }
 
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Language Usage (%)',
-          data: data,
-          backgroundColor: [
-            '#60a5fa', '#f472b6', '#34d399', '#fbbf24',
-            '#a78bfa', '#fb7185', '#facc15'
-          ],
-          borderRadius: 6,
-          borderSkipped: false
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: function (context) {
-                return `${context.label}: ${context.parsed.y}%`;
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            ticks: {
-              color: 'white',
-              font: { weight: 'bold' }
-            },
-            grid: { color: 'rgba(255,255,255,0.1)' }
-          },
-          y: {
-            beginAtZero: true,
-            ticks: {
-              color: 'white',
-              callback: val => `${val}%`
-            },
-            grid: { color: 'rgba(255,255,255,0.1)' },
-            title: {
-              display: true,
-              text: 'Percentage',
-              color: 'white'
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Language Usage (%)',
+        data: data,
+        backgroundColor: [
+          '#60a5fa', '#f472b6', '#34d399', '#fbbf24',
+          '#a78bfa', '#fb7185', '#facc15'
+        ],
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              return `${context.label}: ${context.parsed.y}%`;
             }
           }
         }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: 'white',
+            font: { weight: 'bold' }
+          },
+          grid: { color: 'rgba(255,255,255,0.1)' }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: 'white',
+            callback: val => `${val}%`
+          },
+          grid: { color: 'rgba(255,255,255,0.1)' },
+          title: {
+            display: true,
+            text: 'Percentage',
+            color: 'white'
+          }
+        }
       }
-    });
+    }
+  });
   });
 </script>
 {% endif %}
-
-
-
-
-
 {% endblock %}

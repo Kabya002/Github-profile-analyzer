@@ -28,17 +28,16 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 HEADERS = {
     "Authorization": f"token {GITHUB_TOKEN}" if GITHUB_TOKEN else None,
     "User-Agent": "GitHub-Profile-Analyzer"}
-# Clean up None values
 HEADERS = {k: v for k, v in HEADERS.items() if v is not None}
 
 github_bp = make_github_blueprint(
     client_id=os.getenv("GITHUB_OAUTH_CLIENT_ID"),
-    client_secret=os.getenv("GITHUB_OAUTH_CLIENT_SECRET"))
+    client_secret=os.getenv("GITHUB_OAUTH_CLIENT_SECRET"),
+    redirect_url=os.getenv("GITHUB_OAUTH_CALLBACK_URL"))
 app.register_blueprint(github_bp, url_prefix="/github_login")
 
 @app.route("/")
 def home():
-    
     projects = [
     {
         'title': 'Financia:',
@@ -59,7 +58,6 @@ def home():
         'link': 'https://github.com/Kabya002/Portfolio'
     }
 ]
-
     if "github_id" in session:
         return redirect(url_for("dashboard", username=session["github_id"]))
     elif "user" in session:
@@ -113,10 +111,8 @@ def dashboard(username):
     is_github_connected = github_id == username
     logged_in_username = github_id or logged_in_email
 
-    # Determine who to display: searched user or self
     target_username = request.args.get("username") or (github_id if github_id else None)
 
-    # If email-only user without a GitHub search
     if is_email_only and not target_username:
         return render_template(
             "dashboard.html",
@@ -127,7 +123,6 @@ def dashboard(username):
             logged_in_username=logged_in_username
         )
 
-    # No GitHub to show
     if not target_username:
         flash("GitHub account not connected.", "warning")
         return redirect(url_for("dashboard", username=logged_in_username))
@@ -224,14 +219,20 @@ def get_repo_tree(username, repo_name, path=""):
     tree = []
     for item in contents:
         if item["type"] == "file":
-            tree.append({"name": item["name"], "type": "file"})
+            tree.append({
+                "name": item["name"],
+                "type": "file",
+                "url": item["html_url"]
+            })
         elif item["type"] == "dir":
             tree.append({
                 "name": item["name"],
                 "type": "dir",
+                "url": f"https://github.com/{username}/{repo_name}/tree/main/{item['path']}",
                 "children": get_repo_tree(username, repo_name, item["path"])
             })
     return tree
+
 
 @app.route("/repo/<username>/<repo_name>")
 def repo_detail(username, repo_name):
@@ -247,7 +248,6 @@ def repo_detail(username, repo_name):
         return redirect(url_for("dashboard_redirect"))
     repo = repo_resp.json()
 
-    # Language usage
     lang_url = f"https://api.github.com/repos/{username}/{repo_name}/languages"
     lang_resp = requests.get(lang_url, headers=headers)
     languages = lang_resp.json() if lang_resp.ok else {}
@@ -269,7 +269,7 @@ def repo_detail(username, repo_name):
         "repo_detail.html",
         username=username,
         repo_name=repo_name,
-        repo=repo,  # ✅ Pass this to the template
+        repo=repo,
         languages=languages,
         readme_html=readme_html,
         file_tree=file_tree,
@@ -313,12 +313,11 @@ def inject_globals():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        submitted = True  # Track form submission
+        submitted = True 
         name = request.form.get('name')
         email = request.form.get('email').lower()
         password = request.form.get('password')
 
-        # Basic validations
         if not name or not email or not password:
             flash("Please fill in all fields", "danger")
         elif not re.match(r"[^@]+@[^@]+\.[^@]+", email):
@@ -332,13 +331,9 @@ def register():
                 "email": email,
                 "password": generate_password_hash(password)
             })
-            session["user"] = email  # Set session
+            session["user"] = email 
             flash("Registered successfully", "success")
             return redirect(url_for("dashboard_redirect"))
-
-    return render_template("register.html")
-
-
     return render_template("register.html")
 
 @app.route("/login", methods=["GET", "POST"])
@@ -393,7 +388,6 @@ def github_login():
         flash("GitHub account connected successfully!", "success")
         return redirect(url_for("dashboard", username=github_id))
     else:
-        # Check if user exists by GitHub ID
         existing_user = users.find_one({"github_id": github_id})
 
         if not existing_user:
@@ -401,20 +395,17 @@ def github_login():
             users.insert_one({
                 "github_id": github_id,
                 "name": name,
-                "email": github_email,  # May be None if GitHub email is private
+                "email": github_email,
                 "avatar_url": avatar_url,
                 "github_profile": github_profile,
                 "connected": True
             })
-
-    # Log in GitHub user
     session["github_id"] = github_id
     flash("Logged in with GitHub successfully!", "success")
     return redirect(url_for("dashboard", username=github_id))
 
 @app.route("/logout")
 def logout():
-    # Clear all session data
     session.clear()
     flash("You have been logged out.", "info")
     return redirect(url_for("home"))
@@ -427,26 +418,18 @@ def health():
 
 def compute_insights(repos):
     now = datetime.utcnow()
-
-    # Prepare commit timestamps (already part of your fetch logic)
     for repo in repos:
-        # You'll replace this with real commit timestamps per repo (last 100 is enough)
-        repo["commits"] = repo.get("commits", [])  # A list of commit dates in ISO format
-        repo["readme"] = repo.get("readme", "")     # Already fetched README content
-
-    # Most Active Repo
+        repo["commits"] = repo.get("commits", [])
+        repo["readme"] = repo.get("readme", "")
+        
     most_active = max(repos, key=lambda r: len(r["commits"]), default=None)
 
-    # Least Active Repo — exclude the most active one
     def last_commit_time(repo):
         dates = [datetime.strptime(c, "%Y-%m-%dT%H:%M:%SZ") for c in repo["commits"]]
         return max(dates) if dates else datetime.min
 
     repos_excl_most_active = [r for r in repos if r != most_active]
     least_active = min(repos_excl_most_active, key=last_commit_time, default=None) if repos_excl_most_active else None
-
-
-    # Most Loved = stars / commits
     most_loved = max(repos, key=lambda r: r["stargazers_count"] / max(len(r["commits"]), 1), default=None)
 
     # Tech Stack

@@ -13,7 +13,8 @@
     <div class="relative rounded-lg overflow-hidden space-y-5 shadow-lg animate-fadeInUp">
       <div class="relative space-y-5 inset-0 bg-cover bg-center bg-opacity-60"
         style="background-image: url('/static/images/creator-bg.jpeg');"></div>
-      <div class="relative z-10 p-8  bg-black bg-opacity-60 p-8 rounded-lg flex flex-col md:flex-row items-center gap-6">
+      <div
+        class="relative z-10 p-8  bg-black bg-opacity-60 p-8 rounded-lg flex flex-col md:flex-row items-center gap-6">
         <img src="{{ user.avatar_url }}" alt="Avatar" class="w-28 h-28 rounded-full border-4 border-white">
         <div class="text-center md:text-left">
           <h2 class="text-3xl font-bold">{{ user.name or user.login }}</h2>
@@ -30,8 +31,6 @@
     {% if repos %}
     <div class="space-y-10 animate-fadeInUp">
       <h2 class="text-2xl font-bold border-b pb-2">Repositories Overview</h2>
-
-      <!-- Highlight Repo -->
       <!-- Highlight repo -->
       <div class="relative rounded-lg overflow-hidden shadow-lg bg-black bg-opacity-60 p-6">
         <div class="absolute inset-0 bg-cover bg-center opacity-10"
@@ -54,9 +53,9 @@
 
       <!-- Other Repos -->
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {% for repo in repos[1:4] %}
+        {% for repo in repos[1:] %}
         <div
-          class="relative rounded-lg overflow-hidden shadow-lg bg-black bg-opacity-60 p-6 hover:scale-[1.02] transition">
+          class="repo-card relative rounded-lg overflow-hidden shadow-lg bg-black bg-opacity-60 p-6 hover:scale-[1.02] transition">
           <div class="absolute inset-0 bg-cover bg-center opacity-10"
             style="background-image: url('/static/images/hero-bg.jpg');"></div>
           <div class="relative z-10">
@@ -70,17 +69,59 @@
         </div>
         {% endfor %}
       </div>
-
-      {% if repos|length > 4 %}
-      <div class="text-center pt-4">
-        <button class="px-4 py-2 border border-white rounded hover:bg-white hover:text-black transition">Load More
-          Repositories</button>
+      <!-- Load More Button -->
+      {% if repos|length > 6 %}
+      <div class="text-center mt-6">
+        <button id="loadMoreBtn"
+          class="px-4 py-2 border border-white rounded hover:bg-white hover:text-black transition">
+          Load More
+        </button>
       </div>
       {% endif %}
+
     </div>
     {% else %}
     <p class="text-center text-gray-300 mt-6">No repositories available for this user.</p>
     {% endif %}
   </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  let visibleCount = 6;
+  const increment = 3;
+  const repoCards = Array.from(document.querySelectorAll(".repo-card"));
+  const loadMoreBtn = document.getElementById("loadMoreBtn");
+
+  function showVisibleCards() {
+    // Hide all cards first
+    repoCards.forEach(card => card.classList.add("hidden"));
+
+    // Show only up to visibleCount
+    repoCards.slice(0, visibleCount).forEach(card => card.classList.remove("hidden"));
+
+    // Update button label
+    if (visibleCount >= repoCards.length) {
+      loadMoreBtn.textContent = "Collapse";
+    } else {
+      loadMoreBtn.textContent = "Load More";
+    }
+  }
+
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener("click", () => {
+      if (visibleCount >= repoCards.length) {
+        visibleCount = 6; // Reset
+      } else {
+        visibleCount += increment;
+      }
+      showVisibleCards();
+    });
+  }
+
+  // Initial render
+  showVisibleCards();
+</script>
 {% endblock %}

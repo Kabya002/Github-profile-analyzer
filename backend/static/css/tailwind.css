@@ -164,6 +164,24 @@ html,
   /* 7 */
 }
 
+/*resume*/ 
+#resume * {
+  box-sizing: border-box;
+}
+
+.page-break {
+  page-break-before: always;
+}
+
+@media print {
+  #resume {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+  }
+}
+
+
 /*
 1. Remove the margin in all browsers.
 2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.

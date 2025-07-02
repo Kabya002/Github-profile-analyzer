@@ -46,7 +46,7 @@
     <!-- File Structure Card -->
     <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow-lg animate-fadeInUp">
       <div class="cursor-pointer flex justify-between items-center" onclick="toggleFolderTree()">
-        <h3 class="text-xl font-semibold mb-2">📁 Folder Structure</h3>
+        <h3 class="text-xl font-semibold mb-2">Folder Structure</h3>
         <span class="text-sm text-gray-300">Click to expand</span>
       </div>
 
@@ -55,9 +55,12 @@
         <ul class="ml-4 space-y-1">
           {% for node in tree %}
           {% if node.type == 'file' %}
-          <li>📄 {{ node.name }}</li>
+          <li>
+            📄 <a href="{{ node.url }}" target="_blank" class="text-blue-400 hover:underline">{{ node.name }}</a>
+          </li>
           {% elif node.type == 'dir' %}
-          <li>📁 {{ node.name }}
+          <li>
+            📁 <a href="{{ node.url }}" target="_blank" class="text-yellow-300 hover:underline">{{ node.name }}</a>
             {{ render_tree(node.children) }}
           </li>
           {% endif %}
@@ -72,7 +75,7 @@
     <!-- README Card -->
     <div class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow-lg animate-fadeInUp">
       <div class="flex justify-between items-center cursor-pointer" onclick="toggleReadme()">
-        <h3 class="text-xl font-semibold">📄 README</h3>
+        <h3 class="text-xl font-semibold">README</h3>
         <span class="text-sm text-gray-300">Click to expand</span>
       </div>
 
