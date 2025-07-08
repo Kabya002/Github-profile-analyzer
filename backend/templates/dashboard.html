@@ -23,7 +23,7 @@
   </div>
 </section>
 
-{% if not github_connected and not user %}
+{% if not github_connected %}
 <!-- Email-only dashboard -->
 <section class="py-24 text-center text-white">
   <h2 class="text-2xl font-bold">You have not connected your GitHub account</h2>
@@ -65,16 +65,14 @@
 
     <!-- Charts Section -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fadeInUp">
-
       <!-- Bar Chart Card -->
       <div
         class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow text-white flex flex-col items-center justify-center min-h-[360px]">
         <h3 class="text-lg font-bold mb-4 text-center">Language Usage</h3>
-        <div class="w-full h-64"> <!-- Limit height -->
+        <div class="w-full h-64">
           <canvas id="languageChart" class="w-full h-full"></canvas>
         </div>
       </div>
-
       <!-- Contribution Graph Card -->
       <div
         class="bg-white/10 backdrop-blur-md p-6 rounded-lg shadow text-white flex flex-col items-center justify-center min-h-[360px]">
@@ -202,9 +200,7 @@
     </div>
     {% endfor %}
   </div>
-
   <hr class="border-black my-2">
-
   <!-- Languages -->
   <div>
     <h2 class="text-[12pt] font-bold mb-1">Languages</h2>
@@ -227,6 +223,32 @@
 
 {% block scripts %}
 {{ super() }}
+<script>
+  const input = document.getElementById("usernameInput");
+  const baseUrl = "{{ url_for('dashboard', username=logged_in_username) }}";
+
+  input.addEventListener("input", () => {
+    const username = input.value.trim();
+    if (!username) {
+      window.location.href = baseUrl;
+    }
+  });
+  setInterval(() => {
+    fetch("/token/refresh", {
+      method: "POST",
+      credentials: "include"
+    }).then(res => {
+      if (!res.ok) {
+        alert("Session expired. Please log in again.");
+        window.location.href = "{{ url_for('login') }}";
+      }
+    }).catch(() => {
+      alert("Session expired. Please log in again.");
+      window.location.href = "{{ url_for('login') }}";
+    });
+  }, 5 * 60 * 1000); //5min
+</script>
+
 <!-- dynamic search -->
 <script>
   const usernameInput = document.getElementById("usernameInput");
@@ -282,7 +304,6 @@
       });
     });
 
-    // Close dropdown on outside click
     document.addEventListener("click", e => {
       if (!btn.contains(e.target) && !list.contains(e.target)) {
         list.classList.add("hidden");
@@ -314,10 +335,7 @@
         return new Date(b.dataset.updated) - new Date(a.dataset.updated);
       }
     });
-
-    // Hide all
     repoCards.forEach(card => card.classList.add("hidden"));
-    // Show only up to visibleCount
     filtered.slice(0, visibleCount).forEach(card => card.classList.remove("hidden"));
 
     // Update button
@@ -329,8 +347,6 @@
       }
     }
   }
-
-  // Load More Handler
   if (loadMoreBtn) {
     loadMoreBtn.addEventListener("click", () => {
       const tech = document.getElementById("techDropdownBtn").dataset.value || "All";

@@ -5,32 +5,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GitHub Profile Analyzer</title>
-
     <!-- Tailwind CSS -->
     <link href="{{ url_for('static', filename='css/tailwind.css') }}" rel="stylesheet">
-
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
         integrity="sha512-k6RqeWeci5ZR/Lv4MR0sA0FfDOMar2D+QdqFz/Y5r+ewW6M6Ol05Th1JQHqvN4FJzFrTDX9C+QlQyl41KdF1dA=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
-
     <!-- Swiper CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
 </head>
 
 <body class="flex flex-col min-h-screen overflow-x-hidden bg-black text-white dark:bg-gray-900 dark:text-gray-100">
     <!-- Navbar -->
-<header id="navbar"
-  class="bg-nav-radial text-white shadow fixed top-0 left-0 w-full z-50 transition-transform transform duration-300">
-  <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+    <header id="navbar"
+        class="bg-nav-radial text-white shadow fixed top-0 left-0 w-full z-50 transition-transform transform duration-300">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
             <h1 class="text-xl font-bold">
                 <a href="{{ url_for('home') }}" class="hover:text-blue-300 transition-colors">
                     GitHub Profile Analyzer
                 </a>
             </h1>
-
             <div class="space-x-4 flex items-center gap-6">
-                {% if session.github_id or session.user %}
+                 {% if logged_in_username %}
 
                 <a href="{{ url_for('dashboard', username=session.get('github_id', session.get('user'))) }}"
                     class="hover:text-blue-300 transition-colors">
@@ -43,10 +39,10 @@
                         class="flex items-center space-x-2 hover:text-blue-300 transition focus:outline-none">
                         <span>
                             {% if session.github_id %}
-                            {{ session.github_id }}
+                                {{ session.github_id }}
                             {% elif session.user %}
-                            {% set current_user = users.find_one({'email': session.user}) %}
-                            {{ current_user.name if current_user else 'User' }}
+                                {% set current_user = users.find_one({'email': session.user}) %}
+                                {{ current_user.name if current_user else 'User' }}
                             {% endif %}
                         </span>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -134,7 +130,6 @@
                             d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm0 14a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm8-6a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM4 10a1 1 0 01-1 1H2a1 1 0 110-2h1a1 1 0 011 1zm11.07-6.93a1 1 0 010 1.41l-.7.7a1 1 0 01-1.41-1.41l.7-.7a1 1 0 011.41 0zM6.34 15.66a1 1 0 010 1.41l-.7.7a1 1 0 01-1.41-1.41l.7-.7a1 1 0 011.41 0zm9.32 1.41a1 1 0 01-1.41 0l-.7-.7a1 1 0 011.41-1.41l.7.7a1 1 0 010 1.41zM6.34 4.34a1 1 0 01-1.41 0l-.7-.7A1 1 0 016.34 2.2l.7.7a1 1 0 010 1.44z" />
                     </svg>
                 </button>
-                <!-- Back to Top -->
             </div>
         </div>
     </footer>
@@ -146,6 +141,21 @@
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
+    <script>
+        setInterval(() => {
+            fetch("/token/refresh", {
+                method: "POST",
+                credentials: "include"
+            })
+                .then(res => {
+                    if (!res.ok) throw new Error("Session expired");
+                })
+                .catch(() => {
+                    window.location.href = "/login";
+                });
+        }, 5 * 60 * 1000); // Refresh every 5 mins
+    </script>
+
 </body>
 
 </html>
