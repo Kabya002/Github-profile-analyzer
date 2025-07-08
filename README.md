@@ -4,8 +4,9 @@ A clean, interactive web tool to fetch and visualize key details from any GitHub
 
 ---
 
+
 ## Demo Video
->
+>![Untitled video - Made with Clipchamp](https://github.com/user-attachments/assets/326f4a0e-1605-4e2f-9008-9ed60467ddc8)
 ---
 ## Features
 
