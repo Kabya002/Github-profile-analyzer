@@ -12,7 +12,10 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
 app.config["SESSION_PERMANENT"] = True
-CORS(app)
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_COOKIE_SECURE"] = os.getenv("FLASK_ENV") == "production"
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+CORS(app, supports_credentials=True, origins=["https://github-profile-analyzer-ow9y.onrender.com"])
 
 # MongoDB setup
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
@@ -40,7 +43,7 @@ app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
 app.config["JWT_COOKIE_CSRF_PROTECT"] = False 
 app.config["JWT_ACCESS_COOKIE_PATH"] = "/"
 app.config["JWT_REFRESH_COOKIE_PATH"] = "/token/refresh"
-app.config["JWT_COOKIE_SECURE"] = False
+app.config["JWT_COOKIE_SECURE"] = os.getenv("FLASK_ENV") == "production"
 app.config["JWT_SESSION_COOKIE"] = True
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=2)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=7)
@@ -519,4 +522,4 @@ def extract_tags(repo):
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT"))
-    app.run(debug=True,host="0.0.0.0", port=port)
+    app.run(debug=True, host="0.0.0.0", port=port)

@@ -22,8 +22,8 @@
     </form>
 
     <div class="text-center mt-4">
-      <form action="{{ url_for('github.login') }}" method="GET">
-        <button type="submit"
+      <a href="{{ url_for('github.login') }}">
+        <button type="button"
           class="flex items-center gap-2 justify-center w-full px-4 py-2 border border-white rounded hover:bg-white hover:text-black transition">
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
             <path
@@ -31,8 +31,9 @@
           </svg>
           Continue with GitHub
         </button>
-      </form>
+      </a>
     </div>
+
 
     <p class="text-sm text-center mt-6 text-white">Already have an account?
       <a href="/login" class="underline hover:text-gray-300">Login</a>
