@@ -339,6 +339,9 @@ def register():
         resp = make_response(redirect(url_for("dashboard_redirect")))
         set_access_cookies(resp, access_token)
         set_refresh_cookies(resp, refresh_token)
+        print("Form name:", name)
+        print("Form email:", email)
+        print("Form password:", password)
         return resp
     return render_template("register.html")
 
