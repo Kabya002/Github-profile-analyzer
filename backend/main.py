@@ -521,5 +521,9 @@ def extract_tags(repo):
     return sorted(tags)
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT"))
+    try:
+        port = int(os.environ.get("PORT", "").strip())
+    except (ValueError, AttributeError):
+        port = 5000
     app.run(debug=True, host="0.0.0.0", port=port)
+
