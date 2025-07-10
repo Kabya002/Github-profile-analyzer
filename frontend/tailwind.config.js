@@ -1,5 +1,10 @@
 module.exports = {
-  content: ["../backend/templates/**/*.html"],
+  content: [
+  "../backend/templates/**/*.html",
+  "../backend/**/*.py",
+  "./src/**/*.{js,ts,jsx,tsx}"
+],
+
   safelist: [
     "swiper-slide",
     "swiper-wrapper",

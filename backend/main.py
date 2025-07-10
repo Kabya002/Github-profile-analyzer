@@ -1,117 +1,145 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, make_response
 from flask_cors import CORS
 from pymongo import MongoClient
 from collections import Counter
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_dance.contrib.github import make_github_blueprint, github
-from flask_dance.consumer import oauth_authorized
-import requests, os
-from functools import wraps
-import markdown
-import base64
-import re
+from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, jwt_required, set_access_cookies, set_refresh_cookies, get_jwt_identity, unset_jwt_cookies
+import requests, os, markdown, base64, re
 
 app = Flask(__name__)
-app.config["SESSION_PERMANENT"] = True
-app.secret_key = os.getenv("SECRET_KEY", "dev")
+app.secret_key = os.getenv("SECRET_KEY")
 CORS(app)
 
-# MongoDB setup
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-client = MongoClient(MONGO_URI)
+# MongoDB
+client = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017/"))
 db = client["github_analyzer"]
-searches = db["search_logs"]
 users = db["users"]
 
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-HEADERS = {
-    "Authorization": f"token {GITHUB_TOKEN}" if GITHUB_TOKEN else None,
-    "User-Agent": "GitHub-Profile-Analyzer"}
-HEADERS = {k: v for k, v in HEADERS.items() if v is not None}
-
+# GitHub OAuth
 github_bp = make_github_blueprint(
     client_id=os.getenv("GITHUB_OAUTH_CLIENT_ID"),
-    client_secret=os.getenv("GITHUB_OAUTH_CLIENT_SECRET"),
-    redirect_url=os.getenv("GITHUB_OAUTH_CALLBACK_URL"))
+    client_secret=os.getenv("GITHUB_OAUTH_CLIENT_SECRET")
+)
 app.register_blueprint(github_bp, url_prefix="/github_login")
+
+# JWT
+app.config.update(
+    JWT_SECRET_KEY=os.getenv("JWT_SECRET_KEY"),
+    JWT_TOKEN_LOCATION=["cookies"],
+    JWT_COOKIE_CSRF_PROTECT=False,
+    JWT_ACCESS_COOKIE_PATH="/",
+    JWT_REFRESH_COOKIE_PATH="/token/refresh",
+    JWT_COOKIE_SECURE=False,
+    JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=2),
+    JWT_REFRESH_TOKEN_EXPIRES=timedelta(days=7)
+)
+jwt = JWTManager(app)
+
+HEADERS = {
+    "Authorization": f"token {os.getenv('GITHUB_TOKEN')}" if os.getenv('GITHUB_TOKEN') else None,
+    "User-Agent": "GitHub-Profile-Analyzer"
+}
+HEADERS = {k: v for k, v in HEADERS.items() if v is not None}
+
 
 @app.route("/")
 def home():
-    projects = [
-    {
-        'title': 'Financia:',
-        'desc': 'A personal finance tracker to help you stay on top of your expenses and income.',
-        'image': '/static/images/financia-logo.png',
-        'link': 'https://github.com/Kabya002/Financia'
-    },
-    {
-        'title': 'Blog:',
-        'desc': 'A clean, minimalist space where anyone can share their thoughts and stories—like a cozy corner of the internet.',
-        'image': '/static/images/blog-logo.png',
-        'link': 'https://blog-c0p3.onrender.com/'
-    },
-    {
-        'title': 'Portfolio Website',
-        'desc': 'A beautifully crafted personal website to showcase projects, skills, and a journey in tech.',
-        'image': '/static/images/portfolio-logo.png',
-        'link': 'https://github.com/Kabya002/Portfolio'
-    }
-]
-    if "github_id" in session:
-        return redirect(url_for("dashboard", username=session["github_id"]))
-    elif "user" in session:
-        return redirect(url_for("dashboard", username=session["user"]))
-    return render_template("home.html", projects=projects)
+    try: 
+        projects = [
+        {
+            'title': 'Financia:',
+            'desc': 'A personal finance tracker to help you stay on top of your expenses and income.',
+            'image': '/static/images/financia-logo.png',
+            'link': 'https://github.com/Kabya002/Financia'
+        },
+        {
+            'title': 'Blog:',
+            'desc': 'A clean, minimalist space where anyone can share their thoughts and stories—like a cozy corner of the internet.',
+            'image': '/static/images/blog-logo.png',
+            'link': 'https://blog-c0p3.onrender.com/'
+        },
+        {
+            'title': 'Portfolio Website',
+            'desc': 'A beautifully crafted personal website to showcase projects, skills, and a journey in tech.',
+            'image': '/static/images/portfolio-logo.png',
+            'link': 'https://github.com/Kabya002/Portfolio'
+        }
+    ]
+        if "github_id" in session:
+            return redirect(url_for("dashboard", username=session["github_id"]))
+        elif "user" in session:
+            return redirect(url_for("dashboard", username=session["user"]))
+        return render_template("home.html", projects=projects)
+    except Exception as e:
+        print('[ERROR] home route failed',e)
+        return 'Error in home route'
 
 @app.route("/search")
 def search_user():
-    username = request.args.get("username")
-    if not username:
-        return redirect(url_for("home"))
     try:
-        url = f"https://api.github.com/users/{username}"
-        response = requests.get(url, headers=HEADERS)
-
-        if response.status_code != 200:
-            flash(f"User '{username}' not found on GitHub.", "error")
+        username = request.args.get("username")
+        if not username:
             return redirect(url_for("home"))
+        try:
+            url = f"https://api.github.com/users/{username}"
+            response = requests.get(url, headers=HEADERS)
 
-        data = response.json()
-        searches.insert_one({"username": username, "ip": request.remote_addr})
-    except requests.exceptions.RequestException as e:
-        print("GitHub API error:", e)
-        return render_template("summary.html", user={}, error="GitHub API error")
-    return redirect(url_for("summary", username=username))
+            if response.status_code != 200:
+                flash(f"User '{username}' not found on GitHub.", "error")
+                return redirect(url_for("home"))
+
+            data = response.json()
+            searches.insert_one({"username": username, "ip": request.remote_addr})
+        except requests.exceptions.RequestException as e:
+            print("GitHub API error:", e)
+            return render_template("summary.html", user={}, error="GitHub API error")
+        return redirect(url_for("summary", username=username))
+    except Exception as e:
+        print('[ERROR] Search route failed',e)
+        return 'Error in Search route'
 
 @app.route("/summary/<username>")
 def summary(username):
-    user_url = f"https://api.github.com/users/{username}"
-    repos_url = f"https://api.github.com/users/{username}/repos?sort=updated"
+    try:
+        user_url = f"https://api.github.com/users/{username}"
+        repos_url = f"https://api.github.com/users/{username}/repos?sort=updated"
 
-    user_response = requests.get(user_url, headers=HEADERS)
-    repos_response = requests.get(repos_url, headers=HEADERS)
-    
+        user_response = requests.get(user_url, headers=HEADERS)
+        repos_response = requests.get(repos_url, headers=HEADERS)
+        
+        if user_response.status_code != 200:
+            return render_template("summary.html", user={}, repos=[])
 
-    if user_response.status_code != 200:
-        return render_template("summary.html", user={}, repos=[])
+        user_data = user_response.json()
+        repos_data = repos_response.json() if repos_response.status_code == 200 else []
 
-    user_data = user_response.json()
-    repos_data = repos_response.json() if repos_response.status_code == 200 else []
+        return render_template("summary.html", user=user_data, repos=repos_data)
+    except Exception as e:
+        print('[ERROR] summary route failed',e)
+        return 'Error in summary route'
 
-    return render_template("summary.html", user=user_data, repos=repos_data)
+@app.route("/dashboard")
+@jwt_required()
+def dashboard_redirect():
+    identity = get_jwt_identity()
+    return redirect(url_for("dashboard", username=identity))
 
 @app.route("/dashboard/<username>")
+@jwt_required(optional=True)
 def dashboard(username):
     # Determine session state
     logged_in_email = session.get("user")
     github_id = session.get("github_id")
+    jwt_identity = get_jwt_identity()
 
+    logged_in_username = github_id or logged_in_email or jwt_identity
     is_email_only = logged_in_email and not github_id
     is_github_connected = github_id == username
-    logged_in_username = github_id or logged_in_email
 
-    target_username = request.args.get("username") or (github_id if github_id else None)
+    target_username = request.args.get("username") or github_id or jwt_identity
 
     if is_email_only and not target_username:
         return render_template(
@@ -145,15 +173,11 @@ def dashboard(username):
 
     user_data = user_resp.json()
     repos_data = repos_resp.json() if repos_resp.status_code == 200 else []
-    # Tag extraction for Tech Stack filtering
     for repo in repos_data:
         repo["tags"] = extract_tags(repo)
 
-    # Collect all unique stack tags
     all_tags = sorted({tag for repo in repos_data for tag in repo["tags"]})
 
-
-    # Optional: compute language usage chart
     language_totals = {}
     total_bytes = 0
 
@@ -177,6 +201,7 @@ def dashboard(username):
             "labels": list(language_totals.keys()),
             "values": [round((v / total_bytes) * 100, 2) for v in language_totals.values()]
         }
+
     insights = compute_insights(repos_data)
     return render_template(
         "dashboard.html",
@@ -188,20 +213,6 @@ def dashboard(username):
         stack_tags=all_tags,
         logged_in_username=logged_in_username
     )
-
-@app.route("/dashboard")
-def dashboard_redirect():
-    if "github_id" in session:
-        return redirect(url_for("dashboard", username=session["github_id"]))
-    elif "user" in session:
-        user = users.find_one({"email": session["user"]})
-        if user and "github_id" in user:
-            return redirect(url_for("dashboard", username=user["github_id"]))
-        else:
-            return redirect(url_for("dashboard", username=session["user"]))  # email-only view
-    flash("Login required.", "danger")
-    return redirect(url_for("login"))
-
 def get_repo_tree(username, repo_name, path=""):
     url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{path}"
     headers = {"Accept": "application/vnd.github.v3+json"}
@@ -232,7 +243,6 @@ def get_repo_tree(username, repo_name, path=""):
                 "children": get_repo_tree(username, repo_name, item["path"])
             })
     return tree
-
 
 @app.route("/repo/<username>/<repo_name>")
 def repo_detail(username, repo_name):
@@ -297,7 +307,7 @@ def settings():
         return redirect(url_for("login"))
     return render_template("settings.html")
 
-def login_required(f):
+def session_login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if "user" not in session:
@@ -306,34 +316,28 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-@app.context_processor
-def inject_globals():
-    return dict(users=users)
-
-@app.route('/register', methods=['GET', 'POST'])
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    if request.method == 'POST':
-        submitted = True 
-        name = request.form.get('name')
-        email = request.form.get('email').lower()
-        password = request.form.get('password')
+    if request.method == "POST":
+        name = request.form.get("name")
+        email = request.form.get("email").lower()
+        password = request.form.get("password")
 
         if not name or not email or not password:
             flash("Please fill in all fields", "danger")
-        elif not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            flash("Invalid email format", "danger")
-        elif users.find_one({"email": email}):
+            return redirect(url_for("register"))
+
+        if users.find_one({"email": email}):
             flash("Email already registered", "danger")
             return redirect(url_for("login"))
-        else:
-            users.insert_one({
-                "name": name,
-                "email": email,
-                "password": generate_password_hash(password)
-            })
-            session["user"] = email 
-            flash("Registered successfully", "success")
-            return redirect(url_for("dashboard_redirect"))
+
+        users.insert_one({"name": name, "email": email, "password": generate_password_hash(password)})
+        access_token = create_access_token(identity=email)
+        refresh_token = create_refresh_token(identity=email)
+        resp = make_response(redirect(url_for("dashboard_redirect")))
+        set_access_cookies(resp, access_token)
+        set_refresh_cookies(resp, refresh_token)
+        return resp
     return render_template("register.html")
 
 @app.route("/login", methods=["GET", "POST"])
@@ -341,78 +345,116 @@ def login():
     if request.method == "POST":
         email = request.form.get("email").lower()
         password = request.form.get("password")
-
         user = users.find_one({"email": email})
         if not user or not check_password_hash(user["password"], password):
-            flash("Invalid email or password.", "error")
+            flash("Invalid credentials", "danger")
             return redirect(url_for("login"))
-
-        session["user"] = user["email"]
-        flash("Logged in successfully!", "success")
-        return redirect(url_for("dashboard_redirect"))
-
+        access_token = create_access_token(identity=email)
+        refresh_token = create_refresh_token(identity=email)
+        resp = make_response(redirect(url_for("dashboard_redirect")))
+        set_access_cookies(resp, access_token)
+        set_refresh_cookies(resp, refresh_token)
+        return resp
     return render_template("login.html")
 
-@app.route("/login/github")
-def github_login():
-    if not github.authorized:
-        return redirect(url_for("github.login"))
+@app.route("/github_login/github/authorized")
+def github_authorized():
+    print("GitHub token:", github.token)
+    print("Session keys:", session.keys())
+    print("Authorized:", github.authorized)
 
-    resp = github.get("/user")
-    if not resp.ok:
-        flash("GitHub login failed.", "danger")
-        return redirect(url_for("login"))
+    try:
+        if not github.authorized:
+            flash("GitHub login failed.", "error")
+            return redirect(url_for("login"))
 
-    github_data = resp.json()
-    github_id = github_data["login"]
-    github_profile = github_data.get("html_url")
-    github_email = github_data.get("email")
-    avatar_url = github_data.get("avatar_url")
-    name = github_data.get("name")
+        github_data = github.get("/user").json()
+        github_id = github_data["login"]
+        github_email = github_data.get("email")
+        name = github_data.get("name")
+        github_profile = github_data.get("html_url")
+        avatar_url = github_data.get("avatar_url")
 
-    # If the user already logged in with email before and wants to connect GitHub
-    if "user" in session and "github_id" not in session:
-        users.update_one(
-            {"email": session["user"]},
-            {
-                "$set": {
+        try:
+            verify_jwt_in_request()
+            logged_in_user = get_jwt_identity()
+        except:
+            logged_in_user = None
+
+        if logged_in_user:
+            existing_github_user = users.find_one({"github_id": github_id})
+            if existing_github_user and existing_github_user["email"] != logged_in_user:
+                flash("This GitHub account is already linked to another user.", "danger")
+                return redirect(url_for("dashboard", username=logged_in_user))
+
+            users.update_one(
+                {"email": logged_in_user},
+                {"$set": {
                     "github_id": github_id,
                     "github_profile": github_profile,
                     "avatar_url": avatar_url,
                     "name": name,
                     "connected": True
-                }
-            }
-        )
-        session["github_id"] = github_id
-        flash("GitHub account connected successfully!", "success")
-        return redirect(url_for("dashboard", username=github_id))
-    else:
-        existing_user = users.find_one({"github_id": github_id})
+                }}
+            )
+            identity = logged_in_user
+        else:
+            user = users.find_one({"github_id": github_id})
+            if not user:
+                users.insert_one({
+                    "github_id": github_id,
+                    "name": name,
+                    "email": github_email,
+                    "avatar_url": avatar_url,
+                    "github_profile": github_profile,
+                    "connected": True
+                })
+            identity = github_id
 
-        if not existing_user:
-            # Insert new GitHub-only user
-            users.insert_one({
-                "github_id": github_id,
-                "name": name,
-                "email": github_email,
-                "avatar_url": avatar_url,
-                "github_profile": github_profile,
-                "connected": True
-            })
-    session["github_id"] = github_id
-    flash("Logged in with GitHub successfully!", "success")
-    return redirect(url_for("dashboard", username=github_id))
+        access_token = create_access_token(identity=identity)
+        refresh_token = create_refresh_token(identity=identity)
+        resp = make_response(redirect(url_for("dashboard", username=identity)))
+        set_access_cookies(resp, access_token)
+        set_refresh_cookies(resp, refresh_token)
+        print("Setting JWT cookies for:", identity)
+        return resp
+
+    except Exception as e:
+        print('[ERROR] in github_auth route', e)
+        return ' error in github_auth route'
 
 @app.route("/logout")
 def logout():
-    session.clear()
-    flash("You have been logged out.", "info")
-    return redirect(url_for("home"))
+    resp = make_response(redirect(url_for("home")))
+    unset_jwt_cookies(resp)
+    flash("Logged out successfully", "info")
+    return resp
 
-@app.route('/healthz')
+@app.context_processor
+def inject_globals():
+    return dict(users=users)
+
+@app.route("/token/refresh", methods=["POST"])
+@jwt_required(refresh=True)
+def refresh():
+    identity = get_jwt_identity()
+    access_token = create_access_token(identity=identity)
+    refresh_token = create_refresh_token(identity=identity)
+    resp = jsonify({"msg": "Token refreshed"})
+    set_access_cookies(resp, access_token)
+    set_refresh_cookies(resp, refresh_token)
+    return resp
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    print(traceback.format_exc())
+    return "Internal Server Error", 500
+
+@app.route("/healthz")
 def health():
     return "ok", 200
+
 
 #fuctions:
 
@@ -445,7 +487,7 @@ def compute_insights(repos):
         if lang:
             tech_counter[lang.lower()] += 1
 
-    top_tech_stack = ", ".join([tech.title() for tech, _ in tech_counter.most_common(3)])
+    top_tech_stack = ", ".join([tech.title() for tech, _ in tech_counter.most_common(5)])
 
     # Growth Tip
     growth_tip = "Keep up the great work!"
@@ -476,5 +518,9 @@ def extract_tags(repo):
     return sorted(tags)
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    try:
+        port = int(os.environ.get("PORT", "").strip())
+    except (ValueError, AttributeError):
+        port = 5000
+    app.run(debug=True, host="0.0.0.0", port=port)
+
