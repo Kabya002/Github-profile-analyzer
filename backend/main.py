@@ -14,7 +14,10 @@ import re
 
 app = Flask(__name__)
 app.config["SESSION_PERMANENT"] = True
-app.secret_key = os.getenv("SECRET_KEY", "dev")
+app.config["SESSION_COOKIE_SAMESITE"] = "None"
+app.config["SESSION_COOKIE_SECURE"] = False
+app.config["SESSION_COOKIE_DOMAIN"] = False
+app.secret_key = os.getenv("SECRET_KEY")
 CORS(app)
 
 # MongoDB setup
@@ -353,56 +356,36 @@ def login():
 
     return render_template("login.html")
 
-@app.route("/login/github")
-def github_login():
-    if not github.authorized:
-        return redirect(url_for("github.login"))
+@oauth_authorized.connect_via(github_bp)
+def github_logged_in(blueprint, token):
+    print(" OAuth signal triggered")
+    if not token:
+        flash("Failed to log in with GitHub.", "danger")
+        return False
 
-    resp = github.get("/user")
+    resp = blueprint.session.get("/user")
     if not resp.ok:
-        flash("GitHub login failed.", "danger")
-        return redirect(url_for("login"))
+        flash("Failed to fetch user info from GitHub.", "danger")
+        return False
 
     github_data = resp.json()
-    github_id = github_data["login"]
-    github_profile = github_data.get("html_url")
-    github_email = github_data.get("email")
-    avatar_url = github_data.get("avatar_url")
-    name = github_data.get("name")
+    handle_github_login(github_data)
 
-    # If the user already logged in with email before and wants to connect GitHub
-    if "user" in session and "github_id" not in session:
-        users.update_one(
-            {"email": session["user"]},
-            {
-                "$set": {
-                    "github_id": github_id,
-                    "github_profile": github_profile,
-                    "avatar_url": avatar_url,
-                    "name": name,
-                    "connected": True
-                }
-            }
-        )
-        session["github_id"] = github_id
-        flash("GitHub account connected successfully!", "success")
+    return False  # prevent Flask-Dance from auto-saving
+
+@app.route("/login/github")
+def github_login():
+    print("/login/github called")
+    return redirect(url_for("github.login"))
+
+@app.route("/github_login/github/authorized")
+def github_callback_redirect():
+    # Just a final redirect after the signal
+    github_id = session.get("github_id")
+    if github_id:
         return redirect(url_for("dashboard", username=github_id))
     else:
-        existing_user = users.find_one({"github_id": github_id})
-
-        if not existing_user:
-            # Insert new GitHub-only user
-            users.insert_one({
-                "github_id": github_id,
-                "name": name,
-                "email": github_email,
-                "avatar_url": avatar_url,
-                "github_profile": github_profile,
-                "connected": True
-            })
-    session["github_id"] = github_id
-    flash("Logged in with GitHub successfully!", "success")
-    return redirect(url_for("dashboard", username=github_id))
+        return redirect(url_for("login"))
 
 @app.route("/logout")
 def logout():
@@ -415,6 +398,43 @@ def health():
     return "ok", 200
 
 #fuctions:
+
+def handle_github_login(github_data):
+    github_id = github_data["login"]
+    session["github_id"] = github_id
+    print("GitHub user:", github_id)
+    print("Session set with github_id")
+
+    github_profile = github_data.get("html_url")
+    github_email = github_data.get("email")
+    avatar_url = github_data.get("avatar_url")
+    name = github_data.get("name")
+
+    # If the user already logged in with email before and wants to connect GitHub
+    if "user" in session and "github_id" not in session:
+        users.update_one(
+            {"email": session["user"]},
+            {"$set": {
+                "github_id": github_id,
+                "github_profile": github_profile,
+                "avatar_url": avatar_url,
+                "name": name,
+                "connected": True
+            }}
+        )
+        flash("GitHub account connected successfully!", "success")
+    else:
+        existing_user = users.find_one({"github_id": github_id})
+        if not existing_user:
+            users.insert_one({
+                "github_id": github_id,
+                "name": name,
+                "email": github_email,
+                "avatar_url": avatar_url,
+                "github_profile": github_profile,
+                "connected": True
+            })
+    flash("Logged in with GitHub successfully!", "success")
 
 def compute_insights(repos):
     now = datetime.utcnow()
