@@ -20,9 +20,9 @@
 
 <body class="flex flex-col min-h-screen overflow-x-hidden bg-black text-white dark:bg-gray-900 dark:text-gray-100">
     <!-- Navbar -->
-<header id="navbar"
-  class="bg-nav-radial text-white shadow fixed top-0 left-0 w-full z-50 transition-transform transform duration-300">
-  <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+    <header id="navbar"
+        class="bg-nav-radial text-white shadow fixed top-0 left-0 w-full z-50 transition-transform transform duration-300">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
             <h1 class="text-xl font-bold">
                 <a href="{{ url_for('home') }}" class="hover:text-blue-300 transition-colors">
                     GitHub Profile Analyzer
@@ -30,9 +30,8 @@
             </h1>
 
             <div class="space-x-4 flex items-center gap-6">
-                {% if session.github_id or session.user %}
-
-                <a href="{{ url_for('dashboard', username=session.get('github_id', session.get('user'))) }}"
+                {% if logged_in_user %}
+                <a href="{{ url_for('dashboard', username=logged_in_user.github_id if logged_in_user else 'user') }}"
                     class="hover:text-blue-300 transition-colors">
                     Dashboard
                 </a>
@@ -42,11 +41,10 @@
                     <button @click="open = !open" @click.away="open = false"
                         class="flex items-center space-x-2 hover:text-blue-300 transition focus:outline-none">
                         <span>
-                            {% if session.github_id %}
-                            {{ session.github_id }}
-                            {% elif session.user %}
-                            {% set current_user = users.find_one({'email': session.user}) %}
-                            {{ current_user.name if current_user else 'User' }}
+                            {% if logged_in_user %}
+                            {{ logged_in_user.github_id or logged_in_user.name or 'User' }}
+                            {% else %}
+                            User
                             {% endif %}
                         </span>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -71,19 +69,17 @@
         </div>
     </header>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
+    {% set msg = request.args.get("msg") %}
+    {% set category = request.args.get("category", "info") %}
+    {% if msg %}
     <div class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 space-y-2">
-        {% for category, message in messages %}
         <div class="flash-message bg-white text-black px-4 py-2 rounded shadow flex items-center justify-between gap-2 min-w-[250px] animate-slideDown"
             data-category="{{ category }}">
-            <span>{{ message }}</span>
+            <span>{{ msg }}</span>
             <button onclick="this.parentElement.remove()" class="text-xl leading-none">&times;</button>
         </div>
-        {% endfor %}
     </div>
     {% endif %}
-    {% endwith %}
 
     <!-- Page Content  and back to top button-->
     <main class="flex-1">
@@ -147,5 +143,4 @@
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
 </body>
-
 </html>

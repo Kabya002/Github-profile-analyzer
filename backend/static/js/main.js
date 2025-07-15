@@ -73,10 +73,19 @@ if (document.querySelector(".mySwiper")) {
     tree.classList.toggle("hidden");
   }
 
-//flash messeges 
-setTimeout(() => {
-    document.querySelectorAll('.flash-message').forEach(el => {
-        el.classList.add('animate-slideUp');
-        setTimeout(() => el.remove(), 2500); // give time for animation to finish
-    });
-}, 2500);
+// Flash Message Auto Remove
+document.addEventListener("DOMContentLoaded", () => {
+  const flash = document.querySelector(".flash-message");
+  if (flash) {
+    setTimeout(() => {
+      flash.remove();
+
+      // Clean URL
+      const url = new URL(window.location);
+      url.searchParams.delete("msg");
+      url.searchParams.delete("category");
+      window.history.replaceState({}, document.title, url.pathname);
+    }, 3000);
+  }
+});
+

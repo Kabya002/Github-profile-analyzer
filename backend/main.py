@@ -1,11 +1,12 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from flask_cors import CORS
 from pymongo import MongoClient
 from collections import Counter
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_dance.contrib.github import make_github_blueprint, github
-from flask_dance.consumer import oauth_authorized
+from flask_dance.consumer import oauth_error
+from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity,verify_jwt_in_request
 import requests, os
 from functools import wraps
 import markdown
@@ -13,11 +14,17 @@ import base64
 import re
 
 app = Flask(__name__)
-app.config["SESSION_PERMANENT"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "None"
-app.config["SESSION_COOKIE_SECURE"] = False
-app.config["SESSION_COOKIE_DOMAIN"] = False
-app.secret_key = os.getenv("SECRET_KEY")
+app.secret_key = os.getenv("SESSION_SECRET_KEY")
+app.config["SESSION_COOKIE_NAME"] = "github_analyzer_session"
+app.config["SESSION_COOKIE_SECURE"] = False  # Set to True in production with HTTPS
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY") 
+app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
+app.config["JWT_ACCESS_COOKIE_NAME"] = "access_token"
+app.config["JWT_COOKIE_SECURE"] = False 
+app.config["JWT_COOKIE_SAMESITE"] = "Lax"
+app.config["JWT_COOKIE_CSRF_PROTECT"] = False 
+
+jwt = JWTManager(app)
 CORS(app)
 
 # MongoDB setup
@@ -36,8 +43,32 @@ HEADERS = {k: v for k, v in HEADERS.items() if v is not None}
 github_bp = make_github_blueprint(
     client_id=os.getenv("GITHUB_OAUTH_CLIENT_ID"),
     client_secret=os.getenv("GITHUB_OAUTH_CLIENT_SECRET"),
-    redirect_url=os.getenv("GITHUB_OAUTH_CALLBACK_URL"))
+    scope="user:email",
+    redirect_to="github_callback_redirect"
+)
 app.register_blueprint(github_bp, url_prefix="/github_login")
+
+@oauth_error.connect_via(github_bp)
+def github_oauth_error(blueprint, message, response):
+    print("OAuth error from GitHub! Message:", message)
+    print("Response:", response)
+
+def hybrid_login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            verify_jwt_in_request()
+            identity = get_jwt_identity()
+            if identity:
+                return f(*args, **kwargs)
+        except Exception:
+            # Ignore JWT error, check session fallback
+            pass
+        if session.get("user") or session.get("github_id"):
+            return f(*args, **kwargs)
+        # Redirect if nothing is authenticated
+        return redirect(url_for("login", msg="Please log in to access this page.", category="warning"))
+    return decorated_function
 
 @app.route("/")
 def home():
@@ -77,9 +108,7 @@ def search_user():
         response = requests.get(url, headers=HEADERS)
 
         if response.status_code != 200:
-            flash(f"User '{username}' not found on GitHub.", "error")
-            return redirect(url_for("home"))
-
+            return redirect(url_for("home"), msg="GitHub user not found.", category="error")
         data = response.json()
         searches.insert_one({"username": username, "ip": request.remote_addr})
     except requests.exceptions.RequestException as e:
@@ -105,32 +134,26 @@ def summary(username):
     return render_template("summary.html", user=user_data, repos=repos_data)
 
 @app.route("/dashboard/<username>")
+@hybrid_login_required
 def dashboard(username):
-    # Determine session state
-    logged_in_email = session.get("user")
-    github_id = session.get("github_id")
+    identity = get_jwt_identity()
+    # Validate access: identity must match username (email or GitHub ID)
+    if identity != username:
+        user = users.find_one({"email": identity})
+        if not user or user.get("github_id") != username:
+            return redirect(url_for("dashboard_redirect", msg="Unauthorized access.", category="danger"))
 
-    is_email_only = logged_in_email and not github_id
-    is_github_connected = github_id == username
-    logged_in_username = github_id or logged_in_email
-
-    target_username = request.args.get("username") or (github_id if github_id else None)
-
-    if is_email_only and not target_username:
+    target_username = request.args.get("username") or username
+    user_record = users.find_one({"email": identity})
+    if user_record and "github_id" not in user_record and not request.args.get("username"):
         return render_template(
             "dashboard.html",
             user=None,
             repos=[],
             language_data=None,
             github_connected=False,
-            logged_in_username=logged_in_username
+            logged_in_username=identity
         )
-
-    if not target_username:
-        flash("GitHub account not connected.", "warning")
-        return redirect(url_for("dashboard", username=logged_in_username))
-
-    # Fetch GitHub user & repos
     user_url = f"https://api.github.com/users/{target_username}"
     repos_url = f"https://api.github.com/users/{target_username}/repos?sort=updated"
 
@@ -139,27 +162,21 @@ def dashboard(username):
         repos_resp = requests.get(repos_url, headers=HEADERS)
     except Exception as e:
         print("GitHub API error:", e)
-        flash("Failed to fetch GitHub data.", "error")
-        return redirect(url_for("dashboard", username=logged_in_username))
+        return redirect(url_for("dashboard_redirect", msg="Failed to fetch GitHub data.", category="error"))
 
     if user_resp.status_code != 200:
-        flash(f"GitHub user '{target_username}' not found.", "error")
-        return redirect(url_for("dashboard", username=logged_in_username))
+        return redirect(url_for("dashboard_redirect", msg=f"GitHub user '{target_username}' not found.", category="error"))
 
     user_data = user_resp.json()
     repos_data = repos_resp.json() if repos_resp.status_code == 200 else []
-    # Tag extraction for Tech Stack filtering
+
     for repo in repos_data:
         repo["tags"] = extract_tags(repo)
 
-    # Collect all unique stack tags
     all_tags = sorted({tag for repo in repos_data for tag in repo["tags"]})
 
-
-    # Optional: compute language usage chart
     language_totals = {}
     total_bytes = 0
-
     for repo in repos_data:
         lang_url = repo.get("languages_url")
         if not lang_url:
@@ -180,30 +197,43 @@ def dashboard(username):
             "labels": list(language_totals.keys()),
             "values": [round((v / total_bytes) * 100, 2) for v in language_totals.values()]
         }
+    msg = request.args.get("msg")
+    category = request.args.get("category") or "info"
     insights = compute_insights(repos_data)
+    user_record = users.find_one({"email": identity}) or users.find_one({"github_id": identity})
     return render_template(
-        "dashboard.html",
-        user=user_data,
-        repos=repos_data,
-        insights=insights,
-        language_data=language_data,
-        github_connected=is_github_connected,
-        stack_tags=all_tags,
-        logged_in_username=logged_in_username
-    )
+    "dashboard.html",
+    user=user_data,
+    repos=repos_data,
+    insights=insights,
+    language_data=language_data,
+    github_connected=True,
+    stack_tags=all_tags,
+    logged_in_username=identity,
+    logged_in_user=user_record,
+    msg=msg,
+    category=category
+)
 
 @app.route("/dashboard")
+@hybrid_login_required
 def dashboard_redirect():
-    if "github_id" in session:
-        return redirect(url_for("dashboard", username=session["github_id"]))
-    elif "user" in session:
-        user = users.find_one({"email": session["user"]})
-        if user and "github_id" in user:
-            return redirect(url_for("dashboard", username=user["github_id"]))
-        else:
-            return redirect(url_for("dashboard", username=session["user"]))  # email-only view
-    flash("Login required.", "danger")
-    return redirect(url_for("login"))
+    identity = get_jwt_identity()
+    msg = request.args.get("msg")
+    category = request.args.get("category") or "info"
+    
+    #finding user by GitHub ID
+    user = users.find_one({"github_id": identity})
+    if user:
+        return redirect(url_for("dashboard",  username=identity, msg=msg, category=category))
+
+    # else email login
+    user = users.find_one({"email": identity})
+    if user and "github_id" in user:
+        return redirect(url_for("dashboard", username=user["github_id"], msg=msg, category=category))
+    elif user:
+        return redirect(url_for("dashboard", username=identity, msg=msg, category=category))
+    return redirect(url_for("login", msg="User not found.", category="danger"))
 
 def get_repo_tree(username, repo_name, path=""):
     url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{path}"
@@ -236,7 +266,6 @@ def get_repo_tree(username, repo_name, path=""):
             })
     return tree
 
-
 @app.route("/repo/<username>/<repo_name>")
 def repo_detail(username, repo_name):
     headers = {"Accept": "application/vnd.github.v3+json"}
@@ -247,8 +276,7 @@ def repo_detail(username, repo_name):
     repo_url = f"https://api.github.com/repos/{username}/{repo_name}"
     repo_resp = requests.get(repo_url, headers=headers)
     if not repo_resp.ok:
-        flash("Failed to fetch repository details", "danger")
-        return redirect(url_for("dashboard_redirect"))
+        return redirect(url_for("dashboard_redirect", msg="Failed to fetch repository details", category="danger"))
     repo = repo_resp.json()
 
     lang_url = f"https://api.github.com/repos/{username}/{repo_name}/languages"
@@ -294,49 +322,45 @@ def get_more_repos(username):
         return jsonify([]), 500
 
 @app.route("/settings")
+@hybrid_login_required
 def settings():
-    if "user" not in session and "github_id" not in session:
-        flash("Please log in to view your settings.", "warning")
-        return redirect(url_for("login"))
-    return render_template("settings.html")
+    identity = get_jwt_identity()
+    user = users.find_one({"$or": [{"email": identity}, {"github_id": identity}]})
+    if not user:
+        return redirect(url_for("login", msg="User not found", category="danger"))
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if "user" not in session:
-            flash("Login required to access this page.", "error")
-            return redirect(url_for("login"))
-        return f(*args, **kwargs)
-    return decorated_function
-
-@app.context_processor
-def inject_globals():
-    return dict(users=users)
+    return render_template("settings.html", logged_in_user=user)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        submitted = True 
         name = request.form.get('name')
-        email = request.form.get('email').lower()
+        email = request.form.get('email', '').lower()
         password = request.form.get('password')
-
+        
+        
         if not name or not email or not password:
-            flash("Please fill in all fields", "danger")
+            return redirect(url_for("register", msg="Please fill in all fields", category="danger"))
+
         elif not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            flash("Invalid email format", "danger")
+            return redirect(url_for("register", msg="Invalid email format", category="danger"))
+
         elif users.find_one({"email": email}):
-            flash("Email already registered", "danger")
-            return redirect(url_for("login"))
+            return redirect(url_for("login", msg="Email already registered", category="danger"))
+
         else:
             users.insert_one({
                 "name": name,
                 "email": email,
                 "password": generate_password_hash(password)
             })
-            session["user"] = email 
-            flash("Registered successfully", "success")
-            return redirect(url_for("dashboard_redirect"))
+            #session for github addon
+            session["user"] = email
+            #JWT cookie
+            access_token = create_access_token(identity=email)
+            response = redirect(url_for("dashboard_redirect", msg="Registered successfully", category="success"))
+            response.set_cookie("access_token", access_token, httponly=True)
+            return response
     return render_template("register.html")
 
 @app.route("/login", methods=["GET", "POST"])
@@ -347,94 +371,117 @@ def login():
 
         user = users.find_one({"email": email})
         if not user or not check_password_hash(user["password"], password):
-            flash("Invalid email or password.", "error")
-            return redirect(url_for("login"))
-
-        session["user"] = user["email"]
-        flash("Logged in successfully!", "success")
-        return redirect(url_for("dashboard_redirect"))
+            return redirect(url_for("login", msg="Invalid email or password.", category="error"))
+        #session for github addon
+        session["user"] = email
+        #JWT cookie
+        access_token = create_access_token(identity=email)
+        response = redirect(url_for("dashboard_redirect", msg="Logged in successfully!", category="success"))
+        response.set_cookie("access_token", access_token, httponly=True)
+        return response
 
     return render_template("login.html")
-
-@oauth_authorized.connect_via(github_bp)
-def github_logged_in(blueprint, token):
-    print(" OAuth signal triggered")
-    if not token:
-        flash("Failed to log in with GitHub.", "danger")
-        return False
-
-    resp = blueprint.session.get("/user")
-    if not resp.ok:
-        flash("Failed to fetch user info from GitHub.", "danger")
-        return False
-
-    github_data = resp.json()
-    handle_github_login(github_data)
-
-    return False  # prevent Flask-Dance from auto-saving
 
 @app.route("/login/github")
 def github_login():
     print("/login/github called")
+    session["oauth_start"] = True
     return redirect(url_for("github.login"))
 
 @app.route("/github_login/github/authorized")
 def github_callback_redirect():
-    # Just a final redirect after the signal
-    github_id = session.get("github_id")
-    if github_id:
-        return redirect(url_for("dashboard", username=github_id))
+    print(" GITHUB CALLBACK HIT")
+    print("OAuth token in session:", dict(session))
+    print("github.authorized =", github.authorized)
+
+
+    if "oauth_start" in session:
+        print("Logged in via GitHub button")
+        session["oauth_start_logged"] = True 
+
+    if not github.authorized:
+        return redirect(url_for("dashboard_redirect", msg="GitHub login failed or was denied.", category="danger"))
+
+    resp = github.get("/user")
+    if not resp.ok:
+        return redirect(url_for("login", msg="GitHub API request failed.", category="danger"))
+
+    github_data = resp.json()
+    github_id = github_data["login"]
+    github_email = github_data.get("email")
+    if not github_email:
+    # If email not provided, fetch emails
+        emails_resp = github.get("/user/emails")
+        if emails_resp.ok:
+            email_list = emails_resp.json()
+            # primary + verified email
+            primary_verified = next((e["email"] for e in email_list if e["primary"] and e["verified"]), None)
+            if primary_verified:
+                github_email = primary_verified
+
+    github_profile = github_data.get("html_url")
+    avatar_url = github_data.get("avatar_url")
+    name = github_data.get("name")
+
+    # Create or update user in database
+    user = users.find_one({"github_id": github_id})
+    if not user:
+        users.insert_one({
+            "github_id": github_id,
+            "name": name,
+            "email": github_email,
+            "avatar_url": avatar_url,
+            "github_profile": github_profile,
+            "connected": True
+        })
     else:
-        return redirect(url_for("login"))
+        users.update_one(
+            {"github_id": github_id},
+            {"$set": {
+                "name": name,
+                "email": github_email,
+                "avatar_url": avatar_url,
+                "github_profile": github_profile,
+                "connected": True
+            }}
+        )
+    access_token = create_access_token(identity=github_id)
+    session["github_id"] = github_id 
+    response = redirect(url_for("dashboard", username=github_id, msg="Logged in successfully via GitHub!", category="success"))
+    response.set_cookie("access_token", access_token, httponly=True)
+    return response
 
 @app.route("/logout")
 def logout():
     session.clear()
-    flash("You have been logged out.", "info")
-    return redirect(url_for("home"))
+    response = redirect(url_for("home", msg="You have been logged out.", category="info"))
+    response.delete_cookie("access_token")
+    return response
+
+@app.context_processor
+def inject_logged_in_user():
+    try:
+        verify_jwt_in_request()
+        identity = get_jwt_identity()
+        if not identity:
+            return {"logged_in_user": None}
+
+        # Try to find user by email or GitHub ID
+        user = users.find_one({
+            "$or": [{"email": identity}, {"github_id": identity}]
+        })
+        return {
+            "logged_in_user": user,
+            "logged_in_username": identity 
+        }
+    except Exception:
+        return {"logged_in_user": None}
 
 @app.route('/healthz')
 def health():
     return "ok", 200
 
 #fuctions:
-
-def handle_github_login(github_data):
-    github_id = github_data["login"]
-    session["github_id"] = github_id
-    print("GitHub user:", github_id)
-    print("Session set with github_id")
-
-    github_profile = github_data.get("html_url")
-    github_email = github_data.get("email")
-    avatar_url = github_data.get("avatar_url")
-    name = github_data.get("name")
-
-    # If the user already logged in with email before and wants to connect GitHub
-    if "user" in session and "github_id" not in session:
-        users.update_one(
-            {"email": session["user"]},
-            {"$set": {
-                "github_id": github_id,
-                "github_profile": github_profile,
-                "avatar_url": avatar_url,
-                "name": name,
-                "connected": True
-            }}
-        )
-        flash("GitHub account connected successfully!", "success")
-    else:
-        existing_user = users.find_one({"github_id": github_id})
-        if not existing_user:
-            users.insert_one({
-                "github_id": github_id,
-                "name": name,
-                "email": github_email,
-                "avatar_url": avatar_url,
-                "github_profile": github_profile,
-                "connected": True
-            })
-    flash("Logged in with GitHub successfully!", "success")
 
 def compute_insights(repos):
     now = datetime.utcnow()
