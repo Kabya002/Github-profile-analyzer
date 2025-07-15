@@ -141,7 +141,7 @@ def search_user():
     except requests.exceptions.RequestException as e:
         print("GitHub API error:", e)
         return render_template("summary.html", user={}, error="GitHub API error")
-    return redirect(url_for("summary", username=username, data=data))
+    return redirect(url_for("summary", username=username))
 
 @app.route("/summary/<username>")
 def summary(username):
@@ -164,14 +164,14 @@ def summary(username):
 @hybrid_login_required
 def dashboard(username):
     identity = get_jwt_identity()
-    # Validate access: identity must match username (email or GitHub ID)
+    # Identity must match username (email or GitHub ID)
     if identity != username:
-        user =get_logged_in_user({"email": identity})
+        user = users.find_one({"email": identity})
         if not user or user.get("github_id") != username:
             return redirect(url_for("dashboard_redirect", msg="Unauthorized access.", category="danger"))
 
     target_username = request.args.get("username") or username
-    user_record = get_logged_in_user({"email": identity})
+    user_record = users.find_one({"email": identity})
     if user_record and "github_id" not in user_record and not request.args.get("username"):
         return render_template(
             "dashboard.html",
@@ -227,7 +227,7 @@ def dashboard(username):
     msg = request.args.get("msg")
     category = request.args.get("category") or "info"
     insights = compute_insights(repos_data)
-    user_record = get_logged_in_user({"email": identity}) or get_logged_in_user({"github_id": identity})
+    user_record = users.find_one({"email": identity}) or users.find_one({"github_id": identity})
     return render_template(
     "dashboard.html",
     user=user_data,
@@ -250,12 +250,12 @@ def dashboard_redirect():
     category = request.args.get("category") or "info"
     
     #finding user by GitHub ID
-    user = get_logged_in_user({"github_id": identity})
+    user = users.find_one({"github_id": identity})
     if user:
         return redirect(url_for("dashboard",  username=identity, msg=msg, category=category))
 
     # else email login
-    user = get_logged_in_user({"email": identity})
+    user = users.find_one({"email": identity})
     if user and "github_id" in user:
         return redirect(url_for("dashboard", username=user["github_id"], msg=msg, category=category))
     elif user:
@@ -321,11 +321,9 @@ def get_more_repos(username):
 @app.route("/settings")
 @hybrid_login_required
 def settings():
-    identity = get_jwt_identity()
-    user = get_logged_in_user({"$or": [{"email": identity}, {"github_id": identity}]})
+    user = get_logged_in_user()
     if not user:
         return redirect(url_for("login", msg="User not found", category="danger"))
-
     return render_template("settings.html", logged_in_user=user)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -342,7 +340,7 @@ def register():
         elif not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             return redirect(url_for("register", msg="Invalid email format", category="danger"))
 
-        elif get_logged_in_user({"email": email}):
+        elif users.find_one({"email": email}):
             return redirect(url_for("login", msg="Email already registered", category="danger"))
 
         else:
@@ -366,7 +364,7 @@ def login():
         email = request.form.get("email").lower()
         password = request.form.get("password")
 
-        user = get_logged_in_user({"email": email})
+        user = users.find_one({"email": email})
         if not user or not check_password_hash(user["password"], password):
             return redirect(url_for("login", msg="Invalid email or password.", category="error"))
         #session for github addon
@@ -421,7 +419,7 @@ def github_callback_redirect():
     name = github_data.get("name")
 
     # Create or update user in database
-    user = get_logged_in_user({"github_id": github_id})
+    user = users.find_one({"github_id": github_id})
     if not user:
         users.insert_one({
             "github_id": github_id,
@@ -464,17 +462,12 @@ def github_oauth_error(blueprint, message, response):
 def inject_logged_in_user():
     try:
         verify_jwt_in_request()
-        identity = get_jwt_identity()
-        if not identity:
+        user = get_logged_in_user()
+        if not user:
             return {"logged_in_user": None}
-
-        # Try to find user by email or GitHub ID
-        user = get_logged_in_user({
-            "$or": [{"email": identity}, {"github_id": identity}]
-        })
         return {
             "logged_in_user": user,
-            "logged_in_username": identity 
+            "logged_in_username": user.get("email") or user.get("github_id")
         }
     except Exception:
         return {"logged_in_user": None}
