@@ -1,21 +1,30 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session
-from flask_cors import CORS
-from pymongo import MongoClient
-from collections import Counter
-from datetime import datetime, timedelta
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask_dance.contrib.github import make_github_blueprint, github
-from flask_dance.consumer import oauth_error
-from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity,verify_jwt_in_request
-import requests, os
-from functools import wraps
-import markdown
-import base64
-import re
+try:
+    from flask import Flask, render_template, request, redirect, url_for, jsonify, session, g
+    from flask_cors import CORS
+    from pymongo import MongoClient
+    from collections import Counter
+    from datetime import datetime, timedelta
+    from werkzeug.security import generate_password_hash, check_password_hash
+    from flask_dance.contrib.github import make_github_blueprint, github
+    from flask_dance.consumer import oauth_error
+    from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity,verify_jwt_in_request
+    import requests, os
+    from functools import wraps
+    from dotenv import load_dotenv
+    import markdown
+    import base64
+    import re
+except ImportError as e:
+    print("Required libraries are not installed. Please run 'pip install -r requirements.txt'.")
+    raise e
 
 app = Flask(__name__)
+
+# Load environment variables
+load_dotenv()
+  
 #session for oauth
-app.secret_key = os.getenv("SESSION_SECRET_KEY")
+app.secret_key   = os.getenv("SESSION_SECRET_KEY")
 app.config["SESSION_COOKIE_NAME"] = "github_analyzer_session"
 app.config["SESSION_COOKIE_SECURE"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -37,12 +46,14 @@ db = client["github_analyzer"]
 searches = db["search_logs"]
 users = db["users"]
 
+# GitHub API setup
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 HEADERS = {
     "Authorization": f"token {GITHUB_TOKEN}" if GITHUB_TOKEN else None,
     "User-Agent": "GitHub-Profile-Analyzer"}
 HEADERS = {k: v for k, v in HEADERS.items() if v is not None}
 
+# GitHub OAuth setup
 github_bp = make_github_blueprint(
     client_id=os.getenv("GITHUB_OAUTH_CLIENT_ID"),
     client_secret=os.getenv("GITHUB_OAUTH_CLIENT_SECRET"),
@@ -54,20 +65,38 @@ app.register_blueprint(github_bp, url_prefix="/github_login")
 def hybrid_login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        identity = None
+        jwt_error = None
         try:
             verify_jwt_in_request()
             identity = get_jwt_identity()
-            if identity:
-                return f(*args, **kwargs)
-        except Exception:
-            # Ignore JWT error, check session fallback
-            pass
-        if session.get("user") or session.get("github_id"):
+        except Exception as e:
+            jwt_error = str(e)
+
+        session_user = session.get("user") or session.get("github_id")
+
+        if identity or session_user:
             return f(*args, **kwargs)
-        # Redirect if nothing is authenticated
+
+        print(f"JWT error: {jwt_error}, Session user: {session_user}")
         return redirect(url_for("login", msg="Please log in to access this page.", category="warning"))
     return decorated_function
 
+# Function to get the logged-in user from JWT or session
+def get_logged_in_user():
+    if hasattr(g, "logged_in_user"):
+        return g.logged_in_user
+
+    identity = get_jwt_identity()
+    if not identity:
+        return None
+    user = users.find_one({
+        "$or": [{"email": identity}, {"github_id": identity}]
+    })
+    g.logged_in_user = user
+    return user
+
+#Routes
 @app.route("/")
 def home():
     projects = [
@@ -112,7 +141,7 @@ def search_user():
     except requests.exceptions.RequestException as e:
         print("GitHub API error:", e)
         return render_template("summary.html", user={}, error="GitHub API error")
-    return redirect(url_for("summary", username=username))
+    return redirect(url_for("summary", username=username, data))
 
 @app.route("/summary/<username>")
 def summary(username):
@@ -137,12 +166,12 @@ def dashboard(username):
     identity = get_jwt_identity()
     # Validate access: identity must match username (email or GitHub ID)
     if identity != username:
-        user = users.find_one({"email": identity})
+        user =get_logged_in_user({"email": identity})
         if not user or user.get("github_id") != username:
             return redirect(url_for("dashboard_redirect", msg="Unauthorized access.", category="danger"))
 
     target_username = request.args.get("username") or username
-    user_record = users.find_one({"email": identity})
+    user_record = get_logged_in_user({"email": identity})
     if user_record and "github_id" not in user_record and not request.args.get("username"):
         return render_template(
             "dashboard.html",
@@ -198,7 +227,7 @@ def dashboard(username):
     msg = request.args.get("msg")
     category = request.args.get("category") or "info"
     insights = compute_insights(repos_data)
-    user_record = users.find_one({"email": identity}) or users.find_one({"github_id": identity})
+    user_record = get_logged_in_user({"email": identity}) or get_logged_in_user({"github_id": identity})
     return render_template(
     "dashboard.html",
     user=user_data,
@@ -221,12 +250,12 @@ def dashboard_redirect():
     category = request.args.get("category") or "info"
     
     #finding user by GitHub ID
-    user = users.find_one({"github_id": identity})
+    user = get_logged_in_user({"github_id": identity})
     if user:
         return redirect(url_for("dashboard",  username=identity, msg=msg, category=category))
 
     # else email login
-    user = users.find_one({"email": identity})
+    user = get_logged_in_user({"email": identity})
     if user and "github_id" in user:
         return redirect(url_for("dashboard", username=user["github_id"], msg=msg, category=category))
     elif user:
@@ -293,7 +322,7 @@ def get_more_repos(username):
 @hybrid_login_required
 def settings():
     identity = get_jwt_identity()
-    user = users.find_one({"$or": [{"email": identity}, {"github_id": identity}]})
+    user = get_logged_in_user({"$or": [{"email": identity}, {"github_id": identity}]})
     if not user:
         return redirect(url_for("login", msg="User not found", category="danger"))
 
@@ -313,7 +342,7 @@ def register():
         elif not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             return redirect(url_for("register", msg="Invalid email format", category="danger"))
 
-        elif users.find_one({"email": email}):
+        elif get_logged_in_user({"email": email}):
             return redirect(url_for("login", msg="Email already registered", category="danger"))
 
         else:
@@ -337,7 +366,7 @@ def login():
         email = request.form.get("email").lower()
         password = request.form.get("password")
 
-        user = users.find_one({"email": email})
+        user = get_logged_in_user({"email": email})
         if not user or not check_password_hash(user["password"], password):
             return redirect(url_for("login", msg="Invalid email or password.", category="error"))
         #session for github addon
@@ -392,7 +421,7 @@ def github_callback_redirect():
     name = github_data.get("name")
 
     # Create or update user in database
-    user = users.find_one({"github_id": github_id})
+    user = get_logged_in_user({"github_id": github_id})
     if not user:
         users.insert_one({
             "github_id": github_id,
@@ -440,7 +469,7 @@ def inject_logged_in_user():
             return {"logged_in_user": None}
 
         # Try to find user by email or GitHub ID
-        user = users.find_one({
+        user = get_logged_in_user({
             "$or": [{"email": identity}, {"github_id": identity}]
         })
         return {
