@@ -141,7 +141,7 @@ def search_user():
     except requests.exceptions.RequestException as e:
         print("GitHub API error:", e)
         return render_template("summary.html", user={}, error="GitHub API error")
-    return redirect(url_for("summary", username=username, data))
+    return redirect(url_for("summary", username=username, data=data))
 
 @app.route("/summary/<username>")
 def summary(username):
