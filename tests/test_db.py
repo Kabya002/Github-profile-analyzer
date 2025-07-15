@@ -1,5 +1,5 @@
 import mongomock
-from main import db
+from backend.main import db
 
 def test_insert_user():
     test_user = {"email": "test@example.com", "name": "Test"}

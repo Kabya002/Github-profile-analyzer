@@ -4,7 +4,7 @@
 
 {% block content %}
 <!-- Hero Section with Search -->
-<section class="pt-24 min-h-[60vh] bg-cover bg-center flex items-center justify-center px-4 text-white relative"
+<section class="pt-24 min-h-screen bg-cover bg-center flex items-center justify-center px-4 text-white relative"
   style="background-image: url('/static/images/hero-bg.jpeg');">
   <div class="absolute inset-0 bg-black bg-opacity-70 -z-10"></div>
   <div class="text-center space-y-6">
@@ -23,17 +23,7 @@
   </div>
 </section>
 
-{% if not github_connected and not user %}
-<!-- Email-only dashboard -->
-<section class="py-24 text-center text-white">
-  <h2 class="text-2xl font-bold">You have not connected your GitHub account</h2>
-  <a href="{{ url_for('github_login') }}"
-    class="mt-4 inline-block px-6 py-3 bg-white text-black font-semibold rounded hover:bg-gray-200 transition">
-    Connect GitHub Account
-  </a>
-</section>
-
-{% elif user %}
+{% if user %}
 <!-- Profile & Repo Section -->
 <section class="min-h-screen bg-cover bg-center py-16 px-6 text-white relative"
   style="background-image: url('/static/images/hero-bg.jpeg');">

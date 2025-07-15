@@ -14,15 +14,18 @@ import base64
 import re
 
 app = Flask(__name__)
+#session for oauth
 app.secret_key = os.getenv("SESSION_SECRET_KEY")
 app.config["SESSION_COOKIE_NAME"] = "github_analyzer_session"
-app.config["SESSION_COOKIE_SECURE"] = False  # Set to True in production with HTTPS
+app.config["SESSION_COOKIE_SECURE"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+# JWT configuration
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY") 
 app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
 app.config["JWT_ACCESS_COOKIE_NAME"] = "access_token"
-app.config["JWT_COOKIE_SECURE"] = False 
+app.config["JWT_COOKIE_SECURE"] = True 
 app.config["JWT_COOKIE_SAMESITE"] = "Lax"
-app.config["JWT_COOKIE_CSRF_PROTECT"] = False 
+app.config["JWT_COOKIE_CSRF_PROTECT"] = True 
 
 jwt = JWTManager(app)
 CORS(app)
@@ -47,11 +50,6 @@ github_bp = make_github_blueprint(
     redirect_to="github_callback_redirect"
 )
 app.register_blueprint(github_bp, url_prefix="/github_login")
-
-@oauth_error.connect_via(github_bp)
-def github_oauth_error(blueprint, message, response):
-    print("OAuth error from GitHub! Message:", message)
-    print("Response:", response)
 
 def hybrid_login_required(f):
     @wraps(f)
@@ -235,37 +233,7 @@ def dashboard_redirect():
         return redirect(url_for("dashboard", username=identity, msg=msg, category=category))
     return redirect(url_for("login", msg="User not found.", category="danger"))
 
-def get_repo_tree(username, repo_name, path=""):
-    url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{path}"
-    headers = {"Accept": "application/vnd.github.v3+json"}
-    if GITHUB_TOKEN:
-        headers["Authorization"] = f"token {GITHUB_TOKEN}"
-
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        contents = response.json()
-    except Exception as e:
-        print("GitHub API error:", e)
-        return []
-
-    tree = []
-    for item in contents:
-        if item["type"] == "file":
-            tree.append({
-                "name": item["name"],
-                "type": "file",
-                "url": item["html_url"]
-            })
-        elif item["type"] == "dir":
-            tree.append({
-                "name": item["name"],
-                "type": "dir",
-                "url": f"https://github.com/{username}/{repo_name}/tree/main/{item['path']}",
-                "children": get_repo_tree(username, repo_name, item["path"])
-            })
-    return tree
-
+@hybrid_login_required
 @app.route("/repo/<username>/<repo_name>")
 def repo_detail(username, repo_name):
     headers = {"Accept": "application/vnd.github.v3+json"}
@@ -458,6 +426,11 @@ def logout():
     response.delete_cookie("access_token")
     return response
 
+@oauth_error.connect_via(github_bp)
+def github_oauth_error(blueprint, message, response):
+    print("OAuth error from GitHub! Message:", message)
+    print("Response:", response)
+
 @app.context_processor
 def inject_logged_in_user():
     try:
@@ -482,6 +455,37 @@ def health():
     return "ok", 200
 
 #fuctions:
+
+def get_repo_tree(username, repo_name, path=""):
+    url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{path}"
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"token {GITHUB_TOKEN}"
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        contents = response.json()
+    except Exception as e:
+        print("GitHub API error:", e)
+        return []
+
+    tree = []
+    for item in contents:
+        if item["type"] == "file":
+            tree.append({
+                "name": item["name"],
+                "type": "file",
+                "url": item["html_url"]
+            })
+        elif item["type"] == "dir":
+            tree.append({
+                "name": item["name"],
+                "type": "dir",
+                "url": f"https://github.com/{username}/{repo_name}/tree/main/{item['path']}",
+                "children": get_repo_tree(username, repo_name, item["path"])
+            })
+    return tree
 
 def compute_insights(repos):
     now = datetime.utcnow()
