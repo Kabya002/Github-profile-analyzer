@@ -88,11 +88,11 @@ pytest --cov=backend
 
 ---
 ## Dockerfile Explained:
-**Stage 1 – Frontend build**:
+## **Stage 1 – Frontend build**:
    - Based on Node 18, builds Tailwind CSS styling
    - Copies your templates and front-end assets
    - Outputs tailwind.css
-**Stage 2 – Python backend**:
+## **Stage 2 – Python backend**:
    - Uses slim Python 3.12
    - Adds a non-root user for security
    - Installs system packages (cURL, Git, build tools)
@@ -106,9 +106,9 @@ pytest --cov=backend
 - MongoDB integration & caching
 - pytest tests
 - Add user session persistence
-- Extend AI insights (trends, commit messages, PR histories)
+- Extend smart insights (trends, commit messages, PR histories)
 - Docker‑Compose with Mongo sidecar
-- CI pipeline (GitHub Actions)
+- CI pipeline (GitHub Actions)(Soon)
 
 ---
 ## Folder Structure:
