@@ -1,0 +1,75 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mongo:
+        image: mongo:5
+        ports: [27017:27017]
+
+    env:
+        FLASK_ENV: ${{ secrets.FLASK_ENV }}
+        FLASK_APP_DEBUG: ${{ secrets.FLASK_APP_DEBUG }}
+        FLASK_APP: main.py
+        PORT: ${{ secrets.PORT }}
+        SESSION_SECRET_KEY: ${{ secrets.SESSION_SECRET_KEY }}
+        JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        MONGO_DB_NAME: ${{ secrets.MONGO_DB_NAME }}
+        GH_API: ${{ secrets.GH_API }}
+        GH_OAUTH_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+        GH_OAUTH_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+        GH_OAUTH_CALLBACK_URL: ${{ secrets.GH_OAUTH_CALLBACK_URL }}
+        OAUTHLIB_INSECURE_TRANSPORT: 1
+
+
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 💾 Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name:  Install backend dependencies
+        run: |
+          pip install -r backend/requirements.txt
+
+      - name:  Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name:  Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name:  Build Tailwind CSS + frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: 🚚 Copy frontend assets to backend
+        run: |
+          mkdir -p backend/static/css
+          cp frontend/dist/output.css backend/static/css/tailwind.css
+
+      - name: 🧪 Run Pytest
+        run: |
+          pytest --tb=short --disable-warnings tests/
