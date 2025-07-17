@@ -47,7 +47,7 @@ searches = db["search_logs"]
 users = db["users"]
 
 # GitHub API setup
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_TOKEN = os.getenv("GH_TOKEN")
 HEADERS = {
     "Authorization": f"token {GITHUB_TOKEN}" if GITHUB_TOKEN else None,
     "User-Agent": "GitHub-Profile-Analyzer"}
@@ -55,8 +55,8 @@ HEADERS = {k: v for k, v in HEADERS.items() if v is not None}
 
 # GitHub OAuth setup
 github_bp = make_github_blueprint(
-    client_id=os.getenv("GITHUB_OAUTH_CLIENT_ID"),
-    client_secret=os.getenv("GITHUB_OAUTH_CLIENT_SECRET"),
+    client_id=os.getenv("GH_OAUTH_CLIENT_ID"),
+    client_secret=os.getenv("GH_OAUTH_CLIENT_SECRET"),
     scope="user:email",
     redirect_to="github_callback_redirect"
 )
